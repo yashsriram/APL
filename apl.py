@@ -6,6 +6,7 @@ import ply.yacc as yacc
 
 pointer_id_list = []
 static_id_list = []
+no_assignments = 0
 
 reserved_keywords = {
     'void': 'VOID',
@@ -68,11 +69,6 @@ precedence = (
 )
 
 
-# def p_(p):
-#     """"""
-#     pass
-
-
 def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
     pass
@@ -89,37 +85,63 @@ def p_body(p):
 def p_statement(p):
     """
     statement : INT dlist
+                | alist
     """
     pass
 
 
 def p_dlist(p):
     """
-    dlist : element COMMA dlist
-            | element
+    dlist : declaration COMMA dlist
+            | declaration
     """
     pass
 
 
-def p_pointer_element(p):
+def p_pointer_declaration(p):
     """
-    element : ASTERISK ID
+    declaration : ASTERISK ID
     """
     pointer_id_list.append(p[2])
 
 
-def p_static_element(p):
+def p_static_declaration(p):
     """
-    element : ID
+    declaration : ID
     """
     static_id_list.append(p[1])
 
 
-# def p_statement_assign(p):
-#     """statement : ID EQUALS expression"""
-#     p[1] = p[3]
-#
-#
+def p_alist(p):
+    """
+    alist : assignment COMMA alist
+            | assignment
+    """
+    pass
+
+
+def p_assignment_2(p):
+    """assignment : ID EQUALS assignment
+                | ASTERISK ID EQUALS assignment
+    """
+    global no_assignments
+    no_assignments += 1
+    pass
+
+
+def p_assignment_1(p):
+    """
+    assignment :  ID EQUALS AMPERSAND ID
+                | ASTERISK ID EQUALS NUMBER
+                | ASTERISK ID EQUALS ASTERISK ID
+                | ID EQUALS ID
+                | ASTERISK ID EQUALS ID
+    """
+    global no_assignments
+    no_assignments += 1
+    pass
+
+
 # def p_statement_expr(p):
 #     """statement : expression"""
 #     print(p[1])
@@ -186,8 +208,9 @@ def process(data):
     lex.lex()
     yacc.yacc()
     yacc.parse(data)
-    print(static_id_list)
-    print(pointer_id_list)
+    print(len(static_id_list))
+    print(len(pointer_id_list))
+    print(no_assignments)
 
 
 if __name__ == "__main__":
@@ -198,5 +221,5 @@ if __name__ == "__main__":
     source_code = ''
     for line in source_code_file:
         source_code += line
-    print(source_code)
+    # print(source_code)
     process(source_code)
