@@ -1,10 +1,11 @@
 void main ()
 {
-	int a, b, c, d, e, f, g, h;
-	int *p, *q, *r, *s, *t, *u, *v, *w = &h; 
+	int a, b, c, d, e, f, g;
+	int *p, *q, *r, *s, *t, *u, *v; 
      
         p=&a, q=&b, r=&c, s=&d, t=&e, u=&f, v=&g;
 	*p = 13, *p = 13;
+    *p = *q = 13;
 	*q = *p;
 	*r = *q;
 	*s = *r;

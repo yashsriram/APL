@@ -4,15 +4,17 @@ import sys
 import ply.lex as lex
 import ply.yacc as yacc
 
+pointer_id_list = []
+static_id_list = []
+
 reserved_keywords = {
-    'main': 'MAIN',
     'void': 'VOID',
+    'main': 'MAIN',
     'int': 'INT',
 }
 
 tokens = [
-    'STATIC_ID',
-    'POINTER_ID',
+    'ID',
     'L_PAREN', 'R_PAREN',
     'L_CURLY', 'R_CURLY',
     'SEMICOLON',
@@ -38,15 +40,9 @@ t_L_PAREN = r'\('
 t_R_PAREN = r'\)'
 
 
-def t_STATIC_ID(t):
+def t_ID(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
-    t.type = reserved_keywords.get(t.value, 'STATIC_ID')
-    return t
-
-
-def t_POINTER_ID(t):
-    r'\*[a-zA-Z_][a-zA-Z0-9_]*'
-    t.value = t.value[1:]
+    t.type = reserved_keywords.get(t.value, 'ID')
     return t
 
 
@@ -68,68 +64,115 @@ def t_error(t):
 # Parsing rules
 precedence = (
     ('right', 'EQUALS'),
-    ('right', 'ASTERISK', 'AMPERSAND'),
+    ('right', 'AMPERSAND', 'ASTERISK'),
 )
 
 
-def p_statement_assign(p):
-    """statement : NAME EQUALS expression"""
-    p[1] = p[3]
+# def p_(p):
+#     """"""
+#     pass
 
 
-def p_statement_expr(p):
-    """statement : expression"""
-    print(p[1])
+def p_code(p):
+    """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
+    pass
 
 
-def p_expression_binop(p):
+def p_body(p):
     """
-    expression : expression PLUS expression
-                        | expression MINUS expression
-                        | expression TIMES expression
-                        | expression DIVIDE expression
-                        | expression EXP expression
-                        | expression PLUS_LIT expression
-                        | expression MINUS_LIT expression
-                        | expression TIMES_LIT expression
-                        | expression DIVIDE_LIT expression
-                        | expression EXP_LIT expression
+    body : statement SEMICOLON body
+            | statement SEMICOLON
     """
-    if p[2] == '+' or p[2] == 'plus':
-        p[0] = p[1] + p[3]
-    elif p[2] == '-' or p[2] == 'minus':
-        p[0] = p[1] - p[3]
-    elif p[2] == '*' or p[2] == 'times':
-        p[0] = p[1] * p[3]
-    elif p[2] == '/' or p[2] == 'divide':
-        p[0] = p[1] / p[3]
-    elif p[2] == '**' or p[2] == 'power':
-        p[0] = p[1] ** p[3]
+    pass
 
 
-def p_expression_uminus(p):
-    """expression : MINUS expression %prec UMINUS
-                                | MINUS_LIT expression %prec UMINUS"""
-    p[0] = -p[2]
+def p_statement(p):
+    """
+    statement : INT dlist
+    """
+    pass
 
 
-def p_expression_group(p):
-    """expression : LPAREN expression RPAREN"""
-    p[0] = p[2]
+def p_dlist(p):
+    """
+    dlist : element COMMA dlist
+            | element
+    """
+    pass
 
 
-def p_expression_number(p):
-    """expression : NUMBER"""
-    p[0] = p[1]
+def p_pointer_element(p):
+    """
+    element : ASTERISK ID
+    """
+    pointer_id_list.append(p[2])
 
 
-def p_expression_name(p):
-    """expression : NAME"""
-    try:
-        p[0] = p[1]
-    except LookupError:
-        print("Undefined name '%s'" % p[1])
-        p[0] = 0
+def p_static_element(p):
+    """
+    element : ID
+    """
+    static_id_list.append(p[1])
+
+
+# def p_statement_assign(p):
+#     """statement : ID EQUALS expression"""
+#     p[1] = p[3]
+#
+#
+# def p_statement_expr(p):
+#     """statement : expression"""
+#     print(p[1])
+#
+#
+# def p_expression_binop(p):
+#     """
+#     expression : expression PLUS expression
+#                         | expression MINUS expression
+#                         | expression TIMES expression
+#                         | expression DIVIDE expression
+#                         | expression EXP expression
+#                         | expression PLUS_LIT expression
+#                         | expression MINUS_LIT expression
+#                         | expression TIMES_LIT expression
+#                         | expression DIVIDE_LIT expression
+#                         | expression EXP_LIT expression
+#     """
+#     if p[2] == '+' or p[2] == 'plus':
+#         p[0] = p[1] + p[3]
+#     elif p[2] == '-' or p[2] == 'minus':
+#         p[0] = p[1] - p[3]
+#     elif p[2] == '*' or p[2] == 'times':
+#         p[0] = p[1] * p[3]
+#     elif p[2] == '/' or p[2] == 'divide':
+#         p[0] = p[1] / p[3]
+#     elif p[2] == '**' or p[2] == 'power':
+#         p[0] = p[1] ** p[3]
+#
+#
+# def p_expression_uminus(p):
+#     """expression : MINUS expression %prec UMINUS
+#                                 | MINUS_LIT expression %prec UMINUS"""
+#     p[0] = -p[2]
+#
+#
+# def p_expression_group(p):
+#     """expression : LPAREN expression RPAREN"""
+#     p[0] = p[2]
+#
+#
+# def p_expression_number(p):
+#     """expression : NUMBER"""
+#     p[0] = p[1]
+#
+#
+# def p_expression_name(p):
+#     """expression : ID"""
+#     try:
+#         p[0] = p[1]
+#     except LookupError:
+#         print("Undefined name '%s'" % p[1])
+#         p[0] = 0
 
 
 def p_error(p):
@@ -143,9 +186,17 @@ def process(data):
     lex.lex()
     yacc.yacc()
     yacc.parse(data)
+    print(static_id_list)
+    print(pointer_id_list)
 
 
 if __name__ == "__main__":
-    print("Enter the Equation")
-    data = sys.stdin.readline()
-    process(data)
+    if len(sys.argv) != 2:
+        print('Usage :', sys.argv[0], 'source_file_path')
+        exit(-1)
+    source_code_file = open(sys.argv[1], 'r')
+    source_code = ''
+    for line in source_code_file:
+        source_code += line
+    print(source_code)
+    process(source_code)
