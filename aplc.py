@@ -71,7 +71,9 @@ precedence = (
 
 def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
-    pass
+    print(len(static_id_list))
+    print(len(pointer_id_list))
+    print(no_assignments)
 
 
 def p_body(p):
@@ -217,9 +219,6 @@ def process(data):
     lex.lex()
     yacc.yacc()
     yacc.parse(data)
-    print(len(static_id_list))
-    print(len(pointer_id_list))
-    print(no_assignments)
 
 
 if __name__ == "__main__":
