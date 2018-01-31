@@ -100,9 +100,18 @@ def p_dlist(p):
 
 def p_pointer_declaration(p):
     """
-    declaration : ASTERISK ID
+    declaration : ASTERISK pointer_declaration
     """
-    pointer_id_list.append(p[2])
+    pass
+
+
+def p_r_pointer_declaration(p):
+    """
+    pointer_declaration : ASTERISK pointer_declaration
+                        | ID
+    """
+    if len(p) == 2:
+        pointer_id_list.append(p[1])
 
 
 def p_static_declaration(p):
