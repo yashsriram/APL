@@ -131,28 +131,7 @@ def p_alist(p):
     pass
 
 
-# def p_assignment_2(p):
-#     """assignment : ID EQUALS assignment
-#                 | ASTERISK ID EQUALS assignment
-#     """
-#     global no_assignments
-#     no_assignments += 1
-#     pass
-
-
-# def p_assignment_1(p):
-#     """
-#     assignment :  ID EQUALS AMPERSAND ID
-#                 | ASTERISK ID EQUALS NUMBER
-#                 | ASTERISK ID EQUALS ASTERISK ID
-#                 | ID EQUALS ID
-#                 | ASTERISK ID EQUALS ID
-#     """
-#     global no_assignments
-#     no_assignments += 1
-#     pass
-
-def p_assignment_1(p):
+def p_assignment(p):
     """
     assignment :  ID EQUALS rhs
                 | ASTERISK lhs EQUALS NUMBER
@@ -163,6 +142,7 @@ def p_assignment_1(p):
     no_assignments += 1
     pass
 
+
 def p_lhs(p):
     """
     lhs :  ASTERISK lhs
@@ -172,6 +152,7 @@ def p_lhs(p):
     """
     pass
 
+
 def p_rhs(p):
     """
     rhs :  ASTERISK rhs
@@ -180,8 +161,6 @@ def p_rhs(p):
 
     """
     pass
-
-
 
 
 # def p_statement_expr(p):
