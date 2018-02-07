@@ -21,15 +21,19 @@ tokens = [
     'SEMICOLON',
     'COMMA',
     'EQUALS',
-    'AMPERSAND',
-    'ASTERISK',
+    'AMPERSAND', 'ASTERISK',
     'NUMBER',
+    'PLUS', 'MINUS',
+    'DIVIDE',
 ]
 
 tokens = tokens + list(reserved_keywords.values())
 
 t_ignore = ' \t\n'
 
+t_PLUS = r'\+'
+t_MINUS = r'-'
+t_DIVIDE = r'/'
 t_ASTERISK = r'\*'
 t_AMPERSAND = r'&'
 t_SEMICOLON = r';'
@@ -64,8 +68,10 @@ def t_error(t):
 
 # Parsing rules
 precedence = (
-    ('right', 'EQUALS'),
-    ('right', 'AMPERSAND', 'ASTERISK'),
+    ('left', 'PLUS', 'MINUS'),
+    ('left', 'ASTERISK', 'DIVIDE'),
+    ('right', 'U_MINUS'),
+    ('right', 'AMPERSAND', 'DE_REF'),
 )
 
 
@@ -87,7 +93,7 @@ def p_body(p):
 def p_statement(p):
     """
     statement : INT dlist
-                | alist
+                | assignment
     """
     pass
 
@@ -102,14 +108,14 @@ def p_dlist(p):
 
 def p_pointer_declaration(p):
     """
-    declaration : ASTERISK pointer_declaration
+    declaration : ASTERISK pointer_declaration %prec DE_REF
     """
     pass
 
 
 def p_r_pointer_declaration(p):
     """
-    pointer_declaration : ASTERISK pointer_declaration
+    pointer_declaration : ASTERISK pointer_declaration %prec DE_REF
                         | ID
     """
     if len(p) == 2:
@@ -123,99 +129,55 @@ def p_static_declaration(p):
     static_id_list.append(p[1])
 
 
-def p_alist(p):
-    """
-    alist : assignment COMMA alist
-            | assignment
-    """
-    pass
-
-
 def p_assignment(p):
     """
-    assignment :  ID EQUALS rhs
-                | ASTERISK lhs EQUALS NUMBER
-                | ASTERISK lhs EQUALS rhs
-                | AMPERSAND lhs EQUALS rhs
+    assignment :  ID EQUALS term
+                | AMPERSAND term EQUALS term
+                | ASTERISK term EQUALS expression %prec DE_REF
     """
     global no_assignments
     no_assignments += 1
     pass
 
 
-def p_lhs(p):
+def p_expression_binary_op(p):
     """
-    lhs :  ASTERISK lhs
-        | AMPERSAND lhs
-        | ID
-
-    """
-    pass
-
-
-def p_rhs(p):
-    """
-    rhs :  ASTERISK rhs
-        | AMPERSAND rhs
-        | ID
-
+    expression : expression PLUS expression
+              | expression MINUS expression
+              | expression ASTERISK expression
+              | expression DIVIDE expression
     """
     pass
 
 
-# def p_statement_expr(p):
-#     """statement : expression"""
-#     print(p[1])
-#
-#
-# def p_expression_binop(p):
-#     """
-#     expression : expression PLUS expression
-#                         | expression MINUS expression
-#                         | expression TIMES expression
-#                         | expression DIVIDE expression
-#                         | expression EXP expression
-#                         | expression PLUS_LIT expression
-#                         | expression MINUS_LIT expression
-#                         | expression TIMES_LIT expression
-#                         | expression DIVIDE_LIT expression
-#                         | expression EXP_LIT expression
-#     """
-#     if p[2] == '+' or p[2] == 'plus':
-#         p[0] = p[1] + p[3]
-#     elif p[2] == '-' or p[2] == 'minus':
-#         p[0] = p[1] - p[3]
-#     elif p[2] == '*' or p[2] == 'times':
-#         p[0] = p[1] * p[3]
-#     elif p[2] == '/' or p[2] == 'divide':
-#         p[0] = p[1] / p[3]
-#     elif p[2] == '**' or p[2] == 'power':
-#         p[0] = p[1] ** p[3]
-#
-#
-# def p_expression_uminus(p):
-#     """expression : MINUS expression %prec UMINUS
-#                                 | MINUS_LIT expression %prec UMINUS"""
-#     p[0] = -p[2]
-#
-#
-# def p_expression_group(p):
-#     """expression : LPAREN expression RPAREN"""
-#     p[0] = p[2]
-#
-#
-# def p_expression_number(p):
-#     """expression : NUMBER"""
-#     p[0] = p[1]
-#
-#
-# def p_expression_name(p):
-#     """expression : ID"""
-#     try:
-#         p[0] = p[1]
-#     except LookupError:
-#         print("Undefined name '%s'" % p[1])
-#         p[0] = 0
+def p_expression_uminus(p):
+    """expression : MINUS expression %prec U_MINUS"""
+    pass
+
+
+def p_expression_group(p):
+    """expression : L_PAREN expression R_PAREN"""
+    pass
+
+
+def p_expression_number(p):
+    """expression : NUMBER"""
+    pass
+
+
+def p_expression_term(p):
+    """expression : term"""
+    pass
+
+
+def p_term(p):
+    """
+    term : ASTERISK term %prec DE_REF
+        | AMPERSAND term
+        | ID
+
+    """
+    pass
 
 
 def p_error(p):
