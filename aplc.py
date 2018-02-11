@@ -9,6 +9,7 @@ import ply.yacc as yacc
 pointer_id_list = []
 static_id_list = []
 no_assignments = 0
+assignment_list = []
 
 
 class ASTNode:
@@ -19,6 +20,19 @@ class ASTNode:
 
     def add_child(self, child):
         self.children.append(child)
+
+    def print_node(self, tabs):
+        if self.type == 'VAR' or self.type == 'CONST':
+            print('\t' * tabs + str(self.type) + '(' + str(self.value) + ')')
+        else:
+            print('\t' * tabs + str(self.type))
+            print('\t' * tabs + '(')
+            for i in range(len(self.children)):
+                self.children[i].print_node(tabs + 1)
+                # Don't print last ,
+                if i != len(self.children) - 1:
+                    print('\t' * (tabs + 1) + ',')
+            print('\t' * tabs + ')')
 
 
 ########################################################################################
@@ -92,9 +106,12 @@ precedence = (
 
 def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
-    print(len(static_id_list))
-    print(len(pointer_id_list))
-    print(no_assignments)
+    # print(len(static_id_list))
+    # print(len(pointer_id_list))
+    # print(no_assignments)
+    for assignment in assignment_list:
+        assignment.print_node(0)
+        print('')
 
 
 def p_body(p):
@@ -110,7 +127,9 @@ def p_statement(p):
     statement : INT dlist
                 | assignment
     """
-    pass
+    if len(p) == 2:
+        global assignment_list
+        assignment_list.append(p[1])
 
 
 def p_dlist(p):
@@ -151,7 +170,19 @@ def p_assignment(p):
     """
     global no_assignments
     no_assignments += 1
-    pass
+    if len(p) == 4:
+        id_node = ASTNode('VAR', p[1])
+        node = ASTNode('ASGN', '=')
+        node.add_child(id_node)
+        node.add_child(p[3])
+        p[0] = node
+    elif len(p) == 5:
+        asterisk_node = ASTNode('DEREF', '*')
+        asterisk_node.add_child(p[2])
+        node = ASTNode('ASGN', '=')
+        node.add_child(asterisk_node)
+        node.add_child(p[4])
+        p[0] = node
 
 
 def p_expression_binary_op(p):
@@ -161,27 +192,48 @@ def p_expression_binary_op(p):
               | expression ASTERISK expression
               | expression DIVIDE expression
     """
-    pass
+    if p[2] == '+':
+        node = ASTNode('PLUS', '+')
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '-':
+        node = ASTNode('MINUS', '-')
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '*':
+        node = ASTNode('MUL', '*')
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '/':
+        node = ASTNode('DIV', '/')
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
 
 
 def p_expression_uminus(p):
     """expression : MINUS expression %prec U_MINUS"""
-    pass
+    node = ASTNode('UMINUS', '-')
+    node.add_child(p[2])
+    p[0] = node
 
 
 def p_expression_group(p):
     """expression : L_PAREN expression R_PAREN"""
-    pass
+    p[0] = p[2]
 
 
 def p_expression_number(p):
     """expression : NUMBER"""
-    pass
+    p[0] = ASTNode('CONST', p[1])
 
 
 def p_expression_term(p):
     """expression : term"""
-    pass
+    p[0] = p[1]
 
 
 def p_term(p):
@@ -191,11 +243,17 @@ def p_term(p):
         | ID
 
     """
-    pass
-    # if len(p) == 2:
-    #     p[0] = ASTNode('VAR', p[1])
-    # elif len(p) == 3:
-    #     p[0] = ASTNode('DEREF', )
+    if len(p) == 2:
+        p[0] = ASTNode('VAR', p[1])
+    elif len(p) == 3:
+        if p[1] == '*':
+            node = ASTNode('DEREF', '*')
+            node.add_child(p[2])
+            p[0] = node
+        elif p[1] == '&':
+            node = ASTNode('ADDR', '&')
+            node.add_child(p[2])
+            p[0] = node
 
 
 def p_error(p):

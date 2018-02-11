@@ -1,0 +1,97 @@
+ASGN
+(
+	DEREF
+	(
+		VAR(px)
+	)
+	,
+	CONST(5)
+)
+
+ASGN
+(
+	DEREF
+	(
+		VAR(y)
+	)
+	,
+	CONST(1)
+)
+
+ASGN
+(
+	DEREF
+	(
+		VAR(pz)
+	)
+	,
+	CONST(1)
+)
+
+ASGN
+(
+	DEREF
+	(
+		VAR(z)
+	)
+	,
+	MINUS
+	(
+		PLUS
+		(
+			DEREF
+			(
+				DEREF
+				(
+					VAR(px)
+				)
+			)
+			,
+			DEREF
+			(
+				VAR(py)
+			)
+		)
+		,
+		DEREF
+		(
+			DEREF
+			(
+				DEREF
+				(
+					VAR(px)
+				)
+			)
+		)
+	)
+)
+
+ASGN
+(
+	VAR(sdasz)
+	,
+	PLUS
+	(
+		MUL
+		(
+			UMINUS
+			(
+				DEREF
+				(
+					VAR(z)
+				)
+			)
+			,
+			ADDR
+			(
+				VAR(y)
+			)
+		)
+		,
+		DEREF
+		(
+			VAR(x)
+		)
+	)
+)
+
