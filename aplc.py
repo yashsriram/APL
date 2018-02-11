@@ -4,9 +4,24 @@ import sys
 import ply.lex as lex
 import ply.yacc as yacc
 
+########################################################################################
+
 pointer_id_list = []
 static_id_list = []
 no_assignments = 0
+
+
+class ASTNode:
+    def __init__(self, _type, value):
+        self.type = _type
+        self.value = value
+        self.children = []
+
+    def add_child(self, child):
+        self.children.append(child)
+
+
+########################################################################################
 
 reserved_keywords = {
     'void': 'VOID',
@@ -106,6 +121,13 @@ def p_dlist(p):
     pass
 
 
+def p_static_declaration(p):
+    """
+    declaration : ID
+    """
+    static_id_list.append(p[1])
+
+
 def p_pointer_declaration(p):
     """
     declaration : ASTERISK pointer_declaration %prec DE_REF
@@ -122,17 +144,9 @@ def p_r_pointer_declaration(p):
         pointer_id_list.append(p[1])
 
 
-def p_static_declaration(p):
-    """
-    declaration : ID
-    """
-    static_id_list.append(p[1])
-
-
 def p_assignment(p):
     """
-    assignment :  ID EQUALS term
-                | AMPERSAND term EQUALS term
+    assignment :  ID EQUALS expression
                 | ASTERISK term EQUALS expression %prec DE_REF
     """
     global no_assignments
@@ -178,6 +192,10 @@ def p_term(p):
 
     """
     pass
+    # if len(p) == 2:
+    #     p[0] = ASTNode('VAR', p[1])
+    # elif len(p) == 3:
+    #     p[0] = ASTNode('DEREF', )
 
 
 def p_error(p):
