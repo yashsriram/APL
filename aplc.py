@@ -6,6 +6,7 @@ import ply.yacc as yacc
 
 ########################################################################################
 
+input_file_name = ''
 pointer_id_list = []
 static_id_list = []
 no_assignments = 0
@@ -21,18 +22,20 @@ class ASTNode:
     def add_child(self, child):
         self.children.append(child)
 
-    def print_node(self, tabs):
+    def text_repr(self, tabs):
+        ans = ''
         if self.type == 'VAR' or self.type == 'CONST':
-            print('\t' * tabs + str(self.type) + '(' + str(self.value) + ')')
+            ans += '\t' * tabs + str(self.type) + '(' + str(self.value) + ')' + '\n'
         else:
-            print('\t' * tabs + str(self.type))
-            print('\t' * tabs + '(')
+            ans += '\t' * tabs + str(self.type) + '\n'
+            ans += '\t' * tabs + '(' + '\n'
             for i in range(len(self.children)):
-                self.children[i].print_node(tabs + 1)
+                ans += self.children[i].text_repr(tabs + 1)
                 # Don't print last ,
                 if i != len(self.children) - 1:
-                    print('\t' * (tabs + 1) + ',')
-            print('\t' * tabs + ')')
+                    ans += '\t' * (tabs + 1) + ',' + '\n'
+            ans += '\t' * tabs + ')' + '\n'
+        return ans
 
 
 ########################################################################################
@@ -109,9 +112,9 @@ def p_code(p):
     # print(len(static_id_list))
     # print(len(pointer_id_list))
     # print(no_assignments)
-    for assignment in assignment_list:
-        assignment.print_node(0)
-        print('')
+    with open('Parser_ast_' + input_file_name + '.txt', 'w') as the_file:
+        for assignment in assignment_list:
+            the_file.write(assignment.text_repr(0) + '\n')
 
 
 def p_body(p):
@@ -273,7 +276,8 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print('Usage :', sys.argv[0], 'source_file_path')
         exit(-1)
-    source_code_file = open(sys.argv[1], 'r')
+    input_file_name = sys.argv[1]
+    source_code_file = open(input_file_name, 'r')
     source_code = ''
     for line in source_code_file:
         source_code += line
