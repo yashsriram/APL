@@ -287,3 +287,4 @@ if __name__ == "__main__":
         source_code += line
     # print(source_code)
     process(source_code)
+    source_code_file.close()
