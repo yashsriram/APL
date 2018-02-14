@@ -14,10 +14,11 @@ assignment_list = []
 
 
 class ASTNode:
-    def __init__(self, _type, value):
+    def __init__(self, _type, value, is_constant=False):
         self.type = _type
         self.value = value
         self.children = []
+        self.is_constant = is_constant
 
     def add_child(self, child):
         self.children.append(child)
@@ -174,6 +175,9 @@ def p_assignment(p):
     global no_assignments
     no_assignments += 1
     if len(p) == 4:
+        if p[3].is_constant:
+            print("Error id = constant")
+            exit(-1)
         id_node = ASTNode('VAR', p[1])
         node = ASTNode('ASGN', '=')
         node.add_child(id_node)
@@ -196,22 +200,22 @@ def p_expression_binary_op(p):
               | expression DIVIDE expression
     """
     if p[2] == '+':
-        node = ASTNode('PLUS', '+')
+        node = ASTNode('PLUS', '+', p[1].is_constant and p[3].is_constant)
         node.add_child(p[1])
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '-':
-        node = ASTNode('MINUS', '-')
+        node = ASTNode('MINUS', '-', p[1].is_constant and p[3].is_constant)
         node.add_child(p[1])
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '*':
-        node = ASTNode('MUL', '*')
+        node = ASTNode('MUL', '*', p[1].is_constant and p[3].is_constant)
         node.add_child(p[1])
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '/':
-        node = ASTNode('DIV', '/')
+        node = ASTNode('DIV', '/', p[1].is_constant and p[3].is_constant)
         node.add_child(p[1])
         node.add_child(p[3])
         p[0] = node
@@ -219,7 +223,7 @@ def p_expression_binary_op(p):
 
 def p_expression_uminus(p):
     """expression : MINUS expression %prec U_MINUS"""
-    node = ASTNode('UMINUS', '-')
+    node = ASTNode('UMINUS', '-', p[2].is_constant)
     node.add_child(p[2])
     p[0] = node
 
@@ -231,7 +235,7 @@ def p_expression_group(p):
 
 def p_expression_number(p):
     """expression : NUMBER"""
-    p[0] = ASTNode('CONST', p[1])
+    p[0] = ASTNode('CONST', p[1], True)
 
 
 def p_expression_term(p):
