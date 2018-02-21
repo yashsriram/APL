@@ -177,7 +177,7 @@ def p_assignment(p):
     if len(p) == 4:
         if p[3].is_constant:
             print("Error id = constant")
-            exit(-1)
+            raise SyntaxError
         id_node = ASTNode('VAR', p[1])
         node = ASTNode('ASGN', '=')
         node.add_child(id_node)
