@@ -46,6 +46,8 @@ reserved_keywords = {
     'main': 'MAIN',
     'int': 'INT',
     'while': 'WHILE',
+    'if': 'IF',
+    'else': 'ELSE',
 }
 
 tokens = [
@@ -59,7 +61,7 @@ tokens = [
     'NUMBER',
     'PLUS', 'MINUS',
     'DIVIDE',
-    'GT', 'LT', 'GE', 'LE', 'EE'
+    'GT', 'LT', 'GE', 'LE', 'EE', 'NE'
 ]
 
 tokens = tokens + list(reserved_keywords.values())
@@ -73,6 +75,7 @@ t_ASTERISK = r'\*'
 t_AMPERSAND = r'&'
 t_SEMICOLON = r';'
 t_COMMA = r','
+t_NE = r'!='
 t_EE = r'=='
 t_EQUALS = r'='
 t_L_CURLY = r'{'
@@ -113,7 +116,7 @@ precedence = (
     ('left', 'PLUS', 'MINUS'),
     ('left', 'ASTERISK', 'DIVIDE'),
     ('right', 'U_MINUS'),
-    ('right', 'AMPERSAND', 'DE_REF'),
+    ('right', 'ADDR_OF', 'DE_REF'),
 )
 
 
@@ -131,7 +134,16 @@ def p_body(p):
     """
     body : statement SEMICOLON body
             | WHILE L_PAREN condition R_PAREN while_body body
+            | if_block body
             |
+    """
+    pass
+
+
+def p_if_block(p):
+    """
+    if_block : IF L_PAREN condition R_PAREN if_else_body
+             | IF L_PAREN condition R_PAREN if_else_body ELSE if_else_body
     """
     pass
 
@@ -205,10 +217,12 @@ def p_assignment(p):
 def p_condition(p):
     """
     condition : expression EE expression
+                | expression NE expression
                 | expression GE expression
                 | expression GT expression
                 | expression LE expression
                 | expression LT expression
+                | expression
     """
     pass
 
@@ -216,6 +230,15 @@ def p_condition(p):
 def p_while_body(p):
     """
     while_body : assignment SEMICOLON
+                | L_CURLY body R_CURLY
+    """
+    pass
+
+
+def p_if_else_body(p):
+    """
+    if_else_body : SEMICOLON
+                | assignment SEMICOLON
                 | L_CURLY body R_CURLY
     """
     pass
@@ -275,7 +298,7 @@ def p_expression_term(p):
 def p_term(p):
     """
     term : ASTERISK term %prec DE_REF
-        | AMPERSAND term
+        | AMPERSAND term %prec ADDR_OF
         | ID
 
     """
