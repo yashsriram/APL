@@ -45,6 +45,7 @@ reserved_keywords = {
     'void': 'VOID',
     'main': 'MAIN',
     'int': 'INT',
+    'while': 'WHILE',
 }
 
 tokens = [
@@ -58,6 +59,7 @@ tokens = [
     'NUMBER',
     'PLUS', 'MINUS',
     'DIVIDE',
+    'GT', 'LT', 'GE', 'LE', 'EE'
 ]
 
 tokens = tokens + list(reserved_keywords.values())
@@ -71,11 +73,18 @@ t_ASTERISK = r'\*'
 t_AMPERSAND = r'&'
 t_SEMICOLON = r';'
 t_COMMA = r','
+t_EE = r'=='
 t_EQUALS = r'='
 t_L_CURLY = r'{'
 t_R_CURLY = r'}'
 t_L_PAREN = r'\('
 t_R_PAREN = r'\)'
+
+t_GE = r'>='
+t_GT = r'>'
+t_LE = r'<='
+t_LT = r'<'
+
 
 
 def t_ID(t):
@@ -121,7 +130,8 @@ def p_code(p):
 def p_body(p):
     """
     body : statement SEMICOLON body
-            | statement SEMICOLON
+            | WHILE L_PAREN condition R_PAREN while_body body
+            |
     """
     pass
 
@@ -190,6 +200,25 @@ def p_assignment(p):
         node.add_child(asterisk_node)
         node.add_child(p[4])
         p[0] = node
+
+
+def p_condition(p):
+    """
+    condition : expression EE expression
+                | expression GE expression
+                | expression GT expression
+                | expression LE expression
+                | expression LT expression
+    """
+    pass
+
+
+def p_while_body(p):
+    """
+    while_body : assignment SEMICOLON
+                | L_CURLY body R_CURLY
+    """
+    pass
 
 
 def p_expression_binary_op(p):
