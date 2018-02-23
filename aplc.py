@@ -89,7 +89,6 @@ t_LE = r'<='
 t_LT = r'<'
 
 
-
 def t_ID(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
     t.type = reserved_keywords.get(t.value, 'ID')
@@ -140,10 +139,48 @@ def p_body(p):
     pass
 
 
+def p_condition(p):
+    """
+    condition : expression EE expression
+                | expression NE expression
+                | expression GE expression
+                | expression GT expression
+                | expression LE expression
+                | expression LT expression
+                | expression
+    """
+    pass
+
+
+def p_while_body(p):
+    """
+    while_body : assignment SEMICOLON
+                | L_CURLY body R_CURLY
+    """
+    pass
+
+
 def p_if_block(p):
     """
-    if_block : IF L_PAREN condition R_PAREN if_else_body
-             | IF L_PAREN condition R_PAREN if_else_body ELSE if_else_body
+    if_block : IF L_PAREN condition R_PAREN if_elseif_else_body elseif_else_block
+    """
+    pass
+
+
+def p_elseif_else_block(p):
+    """
+    elseif_else_block : ELSE IF L_PAREN condition R_PAREN if_elseif_else_body elseif_else_block
+                | ELSE if_elseif_else_body
+                |
+    """
+    pass
+
+
+def p_if_elseif_else_body(p):
+    """
+    if_elseif_else_body : SEMICOLON
+                | assignment SEMICOLON
+                | L_CURLY body R_CURLY
     """
     pass
 
@@ -212,36 +249,6 @@ def p_assignment(p):
         node.add_child(asterisk_node)
         node.add_child(p[4])
         p[0] = node
-
-
-def p_condition(p):
-    """
-    condition : expression EE expression
-                | expression NE expression
-                | expression GE expression
-                | expression GT expression
-                | expression LE expression
-                | expression LT expression
-                | expression
-    """
-    pass
-
-
-def p_while_body(p):
-    """
-    while_body : assignment SEMICOLON
-                | L_CURLY body R_CURLY
-    """
-    pass
-
-
-def p_if_else_body(p):
-    """
-    if_else_body : SEMICOLON
-                | assignment SEMICOLON
-                | L_CURLY body R_CURLY
-    """
-    pass
 
 
 def p_expression_binary_op(p):
