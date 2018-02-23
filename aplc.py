@@ -112,6 +112,8 @@ def t_error(t):
 
 # Parsing rules
 precedence = (
+    ('left', 'EE', 'NE',),
+    ('left', 'LT', 'GT', 'LE', 'GE'),
     ('left', 'PLUS', 'MINUS'),
     ('left', 'ASTERISK', 'DIVIDE'),
     ('right', 'U_MINUS'),
@@ -139,14 +141,15 @@ def p_body(p):
     pass
 
 
+# -------------------------------- CONDITION --------------------------------
 def p_condition(p):
     """
-    condition : expression EE expression
-                | expression NE expression
-                | expression GE expression
-                | expression GT expression
-                | expression LE expression
-                | expression LT expression
+    condition : condition EE condition
+                | condition NE condition
+                | condition GE condition
+                | condition GT condition
+                | condition LE condition
+                | condition LT condition
                 | expression
     """
     pass
