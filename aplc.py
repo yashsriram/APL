@@ -57,7 +57,9 @@ tokens = [
     'SEMICOLON',
     'COMMA',
     'EQUALS',
-    'AMPERSAND', 'ASTERISK',
+    'AMPERSAND',
+    'ASTERISK',
+    'PIPE',
     'NUMBER',
     'PLUS', 'MINUS',
     'DIVIDE',
@@ -73,6 +75,7 @@ t_MINUS = r'-'
 t_DIVIDE = r'/'
 t_ASTERISK = r'\*'
 t_AMPERSAND = r'&'
+t_PIPE = r'\|'
 t_SEMICOLON = r';'
 t_COMMA = r','
 t_NE = r'!='
@@ -112,6 +115,8 @@ def t_error(t):
 
 # Parsing rules
 precedence = (
+    ('left', 'PIPE'),
+    ('left', 'AMPERSAND'),
     ('left', 'EE', 'NE',),
     ('left', 'LT', 'GT', 'LE', 'GE'),
     ('left', 'PLUS', 'MINUS'),
@@ -142,6 +147,15 @@ def p_body(p):
 
 
 # -------------------------------- CONDITION --------------------------------
+def p_compound_condition(p):
+    """
+    compound_condition : compound_condition AMPERSAND compound_condition
+                       | compound_condition PIPE compound_condition
+                       | condition
+    """
+    pass
+
+
 def p_condition(p):
     """
     condition : condition EE condition
@@ -158,7 +172,7 @@ def p_condition(p):
 # -------------------------------- WHILE BLOCK --------------------------------
 def p_while_block(p):
     """
-    while_block : WHILE L_PAREN condition R_PAREN while_body
+    while_block : WHILE L_PAREN compound_condition R_PAREN while_body
     """
     pass
 
@@ -174,14 +188,14 @@ def p_while_body(p):
 # -------------------------------- IF BLOCK --------------------------------
 def p_if_block(p):
     """
-    if_block : IF L_PAREN condition R_PAREN if_elseif_else_body elseif_else_block
+    if_block : IF L_PAREN compound_condition R_PAREN if_elseif_else_body elseif_else_block
     """
     pass
 
 
 def p_elseif_else_block(p):
     """
-    elseif_else_block : ELSE IF L_PAREN condition R_PAREN if_elseif_else_body elseif_else_block
+    elseif_else_block : ELSE IF L_PAREN compound_condition R_PAREN if_elseif_else_body elseif_else_block
                 | ELSE if_elseif_else_body
                 |
     """
