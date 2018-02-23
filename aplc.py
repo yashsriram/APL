@@ -132,7 +132,7 @@ def p_code(p):
 def p_body(p):
     """
     body : statement SEMICOLON body
-            | WHILE L_PAREN condition R_PAREN while_body body
+            | while_block body
             | if_block body
             |
     """
@@ -152,6 +152,14 @@ def p_condition(p):
     pass
 
 
+# -------------------------------- WHILE BLOCK --------------------------------
+def p_while_block(p):
+    """
+    while_block : WHILE L_PAREN condition R_PAREN while_body
+    """
+    pass
+
+
 def p_while_body(p):
     """
     while_body : assignment SEMICOLON
@@ -160,6 +168,7 @@ def p_while_body(p):
     pass
 
 
+# -------------------------------- IF BLOCK --------------------------------
 def p_if_block(p):
     """
     if_block : IF L_PAREN condition R_PAREN if_elseif_else_body elseif_else_block
@@ -185,6 +194,7 @@ def p_if_elseif_else_body(p):
     pass
 
 
+# -------------------------------- STATEMENT --------------------------------
 def p_statement(p):
     """
     statement : INT dlist
@@ -195,6 +205,7 @@ def p_statement(p):
         assignment_list.append(p[1])
 
 
+# -------------------------------- DECLARATION --------------------------------
 def p_dlist(p):
     """
     dlist : declaration COMMA dlist
@@ -226,6 +237,7 @@ def p_r_pointer_declaration(p):
         pointer_id_list.append(p[1])
 
 
+# -------------------------------- ASSIGNMENT --------------------------------
 def p_assignment(p):
     """
     assignment :  ID EQUALS expression
@@ -251,6 +263,7 @@ def p_assignment(p):
         p[0] = node
 
 
+# -------------------------------- EXPRESSION --------------------------------
 def p_expression_binary_op(p):
     """
     expression : expression PLUS expression
@@ -302,6 +315,7 @@ def p_expression_term(p):
     p[0] = p[1]
 
 
+# -------------------------------- TERM --------------------------------
 def p_term(p):
     """
     term : ASTERISK term %prec DE_REF
