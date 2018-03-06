@@ -188,23 +188,16 @@ def p_while_body(p):
 # -------------------------------- IF BLOCK --------------------------------
 def p_if_block(p):
     """
-    if_block : IF L_PAREN compound_condition R_PAREN if_elseif_else_body elseif_else_block
+    if_block : IF L_PAREN compound_condition R_PAREN if_else_body
+                | IF L_PAREN compound_condition R_PAREN if_else_body ELSE if_else_body
+                | IF L_PAREN compound_condition R_PAREN if_else_body ELSE if_block
     """
     pass
 
 
-def p_elseif_else_block(p):
+def p_if_else_body(p):
     """
-    elseif_else_block : ELSE IF L_PAREN compound_condition R_PAREN if_elseif_else_body elseif_else_block
-                | ELSE if_elseif_else_body
-                |
-    """
-    pass
-
-
-def p_if_elseif_else_body(p):
-    """
-    if_elseif_else_body : SEMICOLON
+    if_else_body : SEMICOLON
                 | assignment SEMICOLON
                 | L_CURLY body R_CURLY
     """

@@ -1,8 +1,10 @@
 
 void main()
 {
-  int *year;
-  int *cntr;	
+  int *year, *cntr, x, y;
+
+  year = &x;
+  cntr = &y;	
 
   *year = 1990; 
  

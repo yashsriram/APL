@@ -1,7 +1,9 @@
 void main()
 {
-	int *a;
-	int *b , *d;
+	int *a,*b, e, f;
+   
+        a = &e;
+        b = &f;
 
 	if (*a >= - *b)
 		*a = *a+1;

@@ -1,8 +1,11 @@
 
 void main()
 {
-   int *n;
-   int *cntr;	
+   int a, b, *n, *cntr;	
+
+   n = &a;
+   cntr = &b;
+
    *n = 3;
 
  

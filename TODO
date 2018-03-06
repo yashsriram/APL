@@ -1,1 +1,2 @@
-(report) paranthesis in condition
+add bitwise-and , logical-and ...
+add parenthesis to condition and compound_condition without conflicts

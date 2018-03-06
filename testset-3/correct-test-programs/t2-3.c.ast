@@ -1,0 +1,146 @@
+
+
+
+
+
+
+
+
+
+
+
+
+ASGN
+(
+	VAR(pl)
+	,
+	ADDR
+	(
+		VAR(l)
+	)
+)
+ASGN
+(
+	VAR(pt)
+	,
+	ADDR
+	(
+		VAR(t)
+	)
+)
+ASGN
+(
+	VAR(pa)
+	,
+	ADDR
+	(
+		VAR(a)
+	)
+)
+ASGN
+(
+	VAR(pm)
+	,
+	ADDR
+	(
+		VAR(m)
+	)
+)
+ASGN
+(
+	VAR(pn)
+	,
+	ADDR
+	(
+		VAR(n)
+	)
+)
+ASGN
+(
+	VAR(pb)
+	,
+	ADDR
+	(
+		VAR(b)
+	)
+)
+ASGN
+(
+	VAR(pu)
+	,
+	ADDR
+	(
+		VAR(u)
+	)
+)
+ASGN
+(
+	VAR(pv)
+	,
+	ADDR
+	(
+		VAR(v)
+	)
+)
+WHILE(
+	LESSTHEN
+	(
+		DEREF
+		(
+			VAR(pt)
+		)
+		,
+		CONST(4)
+	)
+	,
+	ASGN
+	(
+		DEREF
+		(
+			VAR(pa)
+		)
+		,
+		CONST(10)
+	)
+	WHILE(
+		LESSTHEN
+		(
+			DEREF
+			(
+				VAR(pa)
+			)
+			,
+			CONST(10)
+		)
+		,
+		ASGN
+		(
+			DEREF
+			(
+				VAR(pm)
+			)
+			,
+			CONST(10)
+		)
+		ASGN
+		(
+			DEREF
+			(
+				VAR(pn)
+			)
+			,
+			CONST(10)
+		)
+
+	)
+	ASGN
+	(
+		DEREF
+		(
+			VAR(pb)
+		)
+		,
+		CONST(11)
+	)
+
+)
