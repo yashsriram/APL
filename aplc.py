@@ -10,7 +10,6 @@ input_file_name = ''
 pointer_id_list = []
 static_id_list = []
 no_assignments = 0
-assignment_list = []
 
 
 class ASTNode:
@@ -20,13 +19,18 @@ class ASTNode:
         self.children = []
         self.is_constant = is_constant
 
+
     def add_child(self, child):
         self.children.append(child)
+
 
     def text_repr(self, tabs):
         ans = ''
         if self.type == 'VAR' or self.type == 'CONST':
             ans += '\t' * tabs + str(self.type) + '(' + str(self.value) + ')' + '\n'
+        elif self.type == 'BODY':
+            for i in range(len(self.children)):
+                ans += self.children[i].text_repr(tabs)
         else:
             ans += '\t' * tabs + str(self.type) + '\n'
             ans += '\t' * tabs + '(' + '\n'
@@ -134,12 +138,9 @@ precedence = (
 
 def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
-    # print(len(static_id_list))
-    # print(len(pointer_id_list))
-    # print(no_assignments)
-    with open('Parser_ast_' + input_file_name + '.txt', 'w') as the_file:
-        for assignment in assignment_list:
-            the_file.write(assignment.text_repr(0) + '\n')
+    body = p[6]
+    with open(input_file_name + '.ast', 'w') as the_file:
+        the_file.write(body.text_repr(0))
 
 
 def p_body(p):
@@ -149,18 +150,43 @@ def p_body(p):
             | if_block body
             |
     """
-    pass
+    if len(p) == 1:
+        body = ASTNode('BODY', 'body')
+    elif len(p) == 3:
+        body = p[2]
+        #  todo remove next line
+        if p[1] is not None:
+            body.children = [p[1]] + body.children
+    elif len(p) == 4:
+        body = p[3]
+        if p[1] is not None:
+            body.children = [p[1]] + body.children
 
+    p[0] = body
 
 # -------------------------------- CONDITION --------------------------------
 def p_compound_condition(p):
     """
     compound_condition : compound_condition LOGICAL_AND compound_condition
                        | compound_condition LOGICAL_OR compound_condition
-                       | condition
                        | L_PAREN compound_condition R_PAREN
+                       | condition
     """
-    pass
+    if len(p) == 4:
+        if p[2] == '&&':
+            node = ASTNode('AND', '&&', p[1].is_constant and p[3].is_constant)
+            node.add_child(p[1])
+            node.add_child(p[3])
+            p[0] = node
+        elif p[2] == '||':
+            node = ASTNode('OR', '||', p[1].is_constant and p[3].is_constant)
+            node.add_child(p[1])
+            node.add_child(p[3])
+            p[0] = node
+        elif p[1] == '(' and p[3] == ')':
+            p[0] = p[2]
+    elif len(p) == 2:
+        p[0] = p[1]
 
 
 def p_condition(p):
@@ -172,42 +198,79 @@ def p_condition(p):
                 | expression LE expression
                 | expression LT expression
     """
-    pass
+    if p[2] == '==':
+        node = ASTNode('EQ', '==', p[1].is_constant and p[3].is_constant)
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '!=':
+        node = ASTNode('NE', '!=', p[1].is_constant and p[3].is_constant)
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '>=':
+        node = ASTNode('GE', '>=', p[1].is_constant and p[3].is_constant)
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '>':
+        node = ASTNode('GT', '>', p[1].is_constant and p[3].is_constant)
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '<=':
+        node = ASTNode('LE', '<=', p[1].is_constant and p[3].is_constant)
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
+    elif p[2] == '<':
+        node = ASTNode('LT', '<', p[1].is_constant and p[3].is_constant)
+        node.add_child(p[1])
+        node.add_child(p[3])
+        p[0] = node
 
 
 # -------------------------------- WHILE BLOCK --------------------------------
 def p_while_block(p):
     """
-    while_block : WHILE L_PAREN compound_condition R_PAREN while_body
+    while_block : WHILE L_PAREN compound_condition R_PAREN if_else_while_body
     """
-    pass
-
-
-def p_while_body(p):
-    """
-    while_body : assignment SEMICOLON
-                | L_CURLY body R_CURLY
-    """
-    pass
+    while_block = ASTNode('WHILE', 'while')
+    while_block.add_child(p[3])
+    while_block.add_child(p[5])
+    p[0] = while_block
 
 
 # -------------------------------- IF BLOCK --------------------------------
 def p_if_block(p):
     """
-    if_block : IF L_PAREN compound_condition R_PAREN if_else_body
-                | IF L_PAREN compound_condition R_PAREN if_else_body ELSE if_else_body
-                | IF L_PAREN compound_condition R_PAREN if_else_body ELSE if_block
+    if_block : IF L_PAREN compound_condition R_PAREN if_else_while_body
+                | IF L_PAREN compound_condition R_PAREN if_else_while_body ELSE if_else_while_body
+                | IF L_PAREN compound_condition R_PAREN if_else_while_body ELSE if_block
     """
-    pass
+    if_block = ASTNode('IF', 'if')
+    if_block.add_child(p[3])
+    if_block.add_child(p[5])
+    if len(p) == 8:
+        if_block.add_child(p[7])
+    p[0] = if_block
 
 
-def p_if_else_body(p):
+# -------------------------------- IF ELSE WHILE COMMON BODY --------------------------------
+def p_if_else_while_body(p):
     """
-    if_else_body : SEMICOLON
+    if_else_while_body : SEMICOLON
                 | assignment SEMICOLON
                 | L_CURLY body R_CURLY
     """
-    pass
+    if len(p) == 2:
+        p[0] = ASTNode('BODY', 'body')
+    elif len(p) == 3:
+        body = ASTNode('BODY', 'body')
+        body.add_child(p[1])
+        p[0] = body
+    elif len(p) == 4:
+        p[0] = p[2]
 
 
 # -------------------------------- STATEMENT --------------------------------
@@ -217,8 +280,7 @@ def p_statement(p):
                 | assignment
     """
     if len(p) == 2:
-        global assignment_list
-        assignment_list.append(p[1])
+        p[0] = p[1]
 
 
 # -------------------------------- DECLARATION --------------------------------
