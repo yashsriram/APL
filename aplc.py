@@ -59,23 +59,26 @@ tokens = [
     'EQUALS',
     'AMPERSAND',
     'ASTERISK',
-    'PIPE',
     'NUMBER',
     'PLUS', 'MINUS',
     'DIVIDE',
-    'GT', 'LT', 'GE', 'LE', 'EE', 'NE'
+    'GT', 'LT', 'GE', 'LE', 'EE', 'NE',
+    'LOGICAL_AND', 'LOGICAL_OR',
+
 ]
 
 tokens = tokens + list(reserved_keywords.values())
 
-t_ignore = ' \t\n'
+t_ignore = ' \t'
+def t_newline(t):
+    r'\n+'
+    t.lexer.lineno += len(t.value)
 
 t_PLUS = r'\+'
 t_MINUS = r'-'
 t_DIVIDE = r'/'
 t_ASTERISK = r'\*'
 t_AMPERSAND = r'&'
-t_PIPE = r'\|'
 t_SEMICOLON = r';'
 t_COMMA = r','
 t_NE = r'!='
@@ -90,6 +93,9 @@ t_GE = r'>='
 t_GT = r'>'
 t_LE = r'<='
 t_LT = r'<'
+
+t_LOGICAL_AND = r'&&'
+t_LOGICAL_OR = r'\|\|'
 
 
 def t_ID(t):
@@ -115,8 +121,8 @@ def t_error(t):
 
 # Parsing rules
 precedence = (
-    ('left', 'PIPE'),
-    ('left', 'AMPERSAND'),
+    ('left', 'LOGICAL_OR'),
+    ('left', 'LOGICAL_AND'),
     ('left', 'EE', 'NE',),
     ('left', 'LT', 'GT', 'LE', 'GE'),
     ('left', 'PLUS', 'MINUS'),
@@ -149,22 +155,22 @@ def p_body(p):
 # -------------------------------- CONDITION --------------------------------
 def p_compound_condition(p):
     """
-    compound_condition : compound_condition AMPERSAND compound_condition
-                       | compound_condition PIPE compound_condition
+    compound_condition : compound_condition LOGICAL_AND compound_condition
+                       | compound_condition LOGICAL_OR compound_condition
                        | condition
+                       | L_PAREN compound_condition R_PAREN
     """
     pass
 
 
 def p_condition(p):
     """
-    condition : condition EE condition
-                | condition NE condition
-                | condition GE condition
-                | condition GT condition
-                | condition LE condition
-                | condition LT condition
-                | expression
+    condition : expression EE expression
+                | expression NE expression
+                | expression GE expression
+                | expression GT expression
+                | expression LE expression
+                | expression LT expression
     """
     pass
 
@@ -348,7 +354,7 @@ def p_term(p):
 
 def p_error(p):
     if p:
-        print("syntax error at {0}".format(p.value))
+        print("syntax error at {0} in line {1}".format(p.value, p.lineno))
     else:
         print("syntax error at EOF")
 
