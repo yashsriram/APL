@@ -10,9 +10,45 @@ input_file_name = ''
 pointer_id_list = []
 static_id_list = []
 no_assignments = 0
+temp_pk = 0
+def get_next_temp_pk():
+    global temp_pk
+    prev_tpk = temp_pk
+    temp_pk += 1
+    return 't%d' % prev_tpk
+
+def generate_CFG_for_expression(expression_node):
+    """
+    Note:
+        1. Expression node has exactly two children
+        2. A term is also an expression
+        3. If the node is not a term then it is a subtree ending in term leaves
+    """
+    lhs = expression_node.children[0]
+    rhs = expression_node.children[1]
+    if lhs.is_term() and rhs.is_term():
+        ret_temp_id = get_next_temp_pk()
+        print('%s = %s %s %s' % (ret_temp_id, lhs.value, expression_node.value, rhs.value))
+        return ret_temp_id
+    elif not lhs.is_term() and rhs.is_term():
+        temp_id = generate_CFG_for_expression(lhs)
+        ret_temp_id = get_next_temp_pk()
+        print('%s = %s %s %s' % (ret_temp_id, temp_id, expression_node.value, rhs.value))
+        return ret_temp_id
+    elif lhs.is_term() and not rhs.is_term():
+        temp_id = generate_CFG_for_expression(rhs)
+        ret_temp_id = get_next_temp_pk()
+        print('%s = %s %s %s' % (ret_temp_id, lhs.value, expression_node.value, temp_id))
+        return ret_temp_id
+    else:
+        temp_id_lhs = generate_CFG_for_expression(lhs)
+        temp_id_rhs = generate_CFG_for_expression(rhs)
+        ret_temp_id = get_next_temp_pk()
+        print('%s = %s %s %s' % (ret_temp_id, temp_id_lhs, expression_node.value, temp_id_rhs))
+        return ret_temp_id
 
 
-def generateCFG(node):
+def generate_CFG(node):
     if node.type == 'BODY':
         print('<bb %d>' % -1)
         for child in node.children:
@@ -21,7 +57,14 @@ def generateCFG(node):
                 asgn = child
                 lhs = asgn.children[0]
                 rhs = asgn.children[1]
-                print(lhs.value)
+                if rhs.is_term():
+                    print('%s = %s' % (lhs.value, rhs.value))
+                else:
+                    temp_id = generate_CFG_for_expression(rhs)
+                    print('%s = %s' % (lhs.value, temp_id))
+
+    print('<bb %d>' % -1)
+    print('End')
 
 
 class ASTNode:
@@ -34,6 +77,19 @@ class ASTNode:
 
     def add_child(self, child):
         self.children.append(child)
+
+
+    def is_term(self):
+        """
+        Returns whether the token stream comming from this node is a term or not.
+        """
+        if self.type == 'VAR' \
+            or self.type == 'CONST' \
+            or self.type == 'DEREF' \
+            or self.type == 'ADDR':
+            return True
+        else:
+            return False
 
 
     def text_repr(self, tabs):
@@ -153,7 +209,7 @@ def p_code(p):
     body = p[6]
     with open(input_file_name + '.ast', 'w') as the_file:
         the_file.write(body.text_repr(0))
-    generateCFG(body)
+    generate_CFG(body)
 
 
 def p_body(p):
@@ -344,7 +400,7 @@ def p_assignment(p):
         node.add_child(p[3])
         p[0] = node
     elif len(p) == 5:
-        asterisk_node = ASTNode('DEREF', '*')
+        asterisk_node = ASTNode('DEREF', '*%s' % p[2].value)
         asterisk_node.add_child(p[2])
         node = ASTNode('ASGN', '=')
         node.add_child(asterisk_node)
@@ -416,15 +472,15 @@ def p_term(p):
         p[0] = ASTNode('VAR', p[1])
     elif len(p) == 3:
         if p[1] == '*':
-            node = ASTNode('DEREF', '*')
+            node = ASTNode('DEREF', '*%s' % p[2].value)
             node.add_child(p[2])
             p[0] = node
         elif p[1] == '&':
-            node = ASTNode('ADDR', '&')
+            node = ASTNode('ADDR', '&%s' % p[2].value)
             node.add_child(p[2])
             p[0] = node
 
-
+# -------------------------------- ERROR --------------------------------
 def p_error(p):
     if p:
         print("syntax error at {0} in line {1}".format(p.value, p.lineno))
