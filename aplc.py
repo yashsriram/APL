@@ -28,29 +28,30 @@ def generate_CFG_for_expression(expression_node):
     rhs = expression_node.children[1]
     if lhs.is_term() and rhs.is_term():
         ret_temp_id = get_next_temp_pk()
-        print('%s = %s %s %s' % (ret_temp_id, lhs.value, expression_node.value, rhs.value))
-        return ret_temp_id
+        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, rhs.value)
+        return ret_temp_id, this_cfg
     elif not lhs.is_term() and rhs.is_term():
-        temp_id = generate_CFG_for_expression(lhs)
+        temp_id, lhs_cfg = generate_CFG_for_expression(lhs)
         ret_temp_id = get_next_temp_pk()
-        print('%s = %s %s %s' % (ret_temp_id, temp_id, expression_node.value, rhs.value))
-        return ret_temp_id
+        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, expression_node.value, rhs.value)
+        return ret_temp_id, lhs_cfg + this_cfg
     elif lhs.is_term() and not rhs.is_term():
-        temp_id = generate_CFG_for_expression(rhs)
+        temp_id, rhs_cfg = generate_CFG_for_expression(rhs)
         ret_temp_id = get_next_temp_pk()
-        print('%s = %s %s %s' % (ret_temp_id, lhs.value, expression_node.value, temp_id))
-        return ret_temp_id
+        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, temp_id)
+        return ret_temp_id, rhs_cfg + this_cfg
     else:
-        temp_id_lhs = generate_CFG_for_expression(lhs)
-        temp_id_rhs = generate_CFG_for_expression(rhs)
+        temp_id_lhs, lhs_cfg = generate_CFG_for_expression(lhs)
+        temp_id_rhs, rhs_cfg = generate_CFG_for_expression(rhs)
         ret_temp_id = get_next_temp_pk()
-        print('%s = %s %s %s' % (ret_temp_id, temp_id_lhs, expression_node.value, temp_id_rhs))
-        return ret_temp_id
+        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, expression_node.value, temp_id_rhs)
+        return ret_temp_id, lhs_cfg + rhs_cfg + this_cfg
 
 
 def generate_CFG(node):
+    cfg = ''
     if node.type == 'BODY':
-        print('<bb %d>' % -1)
+        cfg += '<bb %d>\n' % -1
         for child in node.children:
             # Assignment
             if child.type == 'ASGN':
@@ -58,13 +59,15 @@ def generate_CFG(node):
                 lhs = asgn.children[0]
                 rhs = asgn.children[1]
                 if rhs.is_term():
-                    print('%s = %s' % (lhs.value, rhs.value))
+                    cfg += '%s = %s\n' % (lhs.value, rhs.value)
                 else:
-                    temp_id = generate_CFG_for_expression(rhs)
-                    print('%s = %s' % (lhs.value, temp_id))
+                    temp_id, rhs_cfg = generate_CFG_for_expression(rhs)
+                    this_cfg = '%s = %s\n' % (lhs.value, temp_id)
+                    cfg += rhs_cfg + this_cfg
 
-    print('<bb %d>' % -1)
-    print('End')
+    cfg += '<bb %d>\n' % -1
+    cfg += 'End\n'
+    return cfg
 
 
 class ASTNode:
@@ -207,9 +210,11 @@ precedence = (
 def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
     body = p[6]
-    with open(input_file_name + '.ast', 'w') as the_file:
+    with open(input_file_name + '.ast1', 'w') as the_file:
         the_file.write(body.text_repr(0))
-    generate_CFG(body)
+    cfg = generate_CFG(body)
+    with open(input_file_name + '.cfg1', 'w') as the_file:
+        the_file.write(cfg)
 
 
 def p_body(p):
