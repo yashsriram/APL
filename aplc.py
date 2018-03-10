@@ -12,6 +12,18 @@ static_id_list = []
 no_assignments = 0
 
 
+def generateCFG(node):
+    if node.type == 'BODY':
+        print('<bb %d>' % -1)
+        for child in node.children:
+            # Assignment
+            if child.type == 'ASGN':
+                asgn = child
+                lhs = asgn.children[0]
+                rhs = asgn.children[1]
+                print(lhs.value)
+
+
 class ASTNode:
     def __init__(self, _type, value, is_constant=False):
         self.type = _type
@@ -141,6 +153,7 @@ def p_code(p):
     body = p[6]
     with open(input_file_name + '.ast', 'w') as the_file:
         the_file.write(body.text_repr(0))
+    generateCFG(body)
 
 
 def p_body(p):
@@ -154,9 +167,7 @@ def p_body(p):
         body = ASTNode('BODY', 'body')
     elif len(p) == 3:
         body = p[2]
-        #  todo remove next line
-        if p[1] is not None:
-            body.children = [p[1]] + body.children
+        body.children = [p[1]] + body.children
     elif len(p) == 4:
         body = p[3]
         if p[1] is not None:
