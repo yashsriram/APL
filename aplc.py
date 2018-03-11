@@ -11,6 +11,14 @@ pointer_id_list = []
 static_id_list = []
 no_assignments = 0
 temp_pk = 0
+block_pk = 1
+
+
+def get_next_block_pk():
+    global block_pk
+    prev_bpk = block_pk
+    block_pk += 1
+    return prev_bpk
 
 
 def get_next_temp_pk():
@@ -20,7 +28,7 @@ def get_next_temp_pk():
     return 't%d' % prev_tpk
 
 
-def generate_CFG_for_expression(expression_node):
+def generate_block_text_recr(expression_node):
     """
     Note:
         1. Expression node has exactly two children
@@ -35,18 +43,18 @@ def generate_CFG_for_expression(expression_node):
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, rhs.value)
             return ret_temp_id, this_cfg
         elif not lhs.is_term() and rhs.is_term():
-            temp_id, lhs_cfg = generate_CFG_for_expression(lhs)
+            temp_id, lhs_cfg = generate_block_text_recr(lhs)
             ret_temp_id = get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, expression_node.value, rhs.value)
             return ret_temp_id, lhs_cfg + this_cfg
         elif lhs.is_term() and not rhs.is_term():
-            temp_id, rhs_cfg = generate_CFG_for_expression(rhs)
+            temp_id, rhs_cfg = generate_block_text_recr(rhs)
             ret_temp_id = get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, temp_id)
             return ret_temp_id, rhs_cfg + this_cfg
         else:
-            temp_id_lhs, lhs_cfg = generate_CFG_for_expression(lhs)
-            temp_id_rhs, rhs_cfg = generate_CFG_for_expression(rhs)
+            temp_id_lhs, lhs_cfg = generate_block_text_recr(lhs)
+            temp_id_rhs, rhs_cfg = generate_block_text_recr(rhs)
             ret_temp_id = get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, expression_node.value, temp_id_rhs)
             return ret_temp_id, lhs_cfg + rhs_cfg + this_cfg
@@ -57,40 +65,130 @@ def generate_CFG_for_expression(expression_node):
             this_cfg = '%s = %s%s\n' % (ret_temp_id, expression_node.value, child_node.value)
             return ret_temp_id, this_cfg
         else:
-            temp_id, child_cfg = generate_CFG_for_expression(child_node)
+            temp_id, child_cfg = generate_block_text_recr(child_node)
             ret_temp_id = get_next_temp_pk()
             this_cfg = '%s = %s%s\n' % (ret_temp_id, expression_node.value, temp_id)
             return ret_temp_id, child_cfg + this_cfg
 
 
-def generate_CFG(node):
+def generate_block_text(cfg_node):
     cfg = ''
-    if node.type == 'BODY':
-        cfg += '<bb %d>\n' % -1
-        for child in node.children:
+    if cfg_node.type == 'ASGN_BLOCK':
+        cfg += '<bb %d>\n' % cfg_node.block_number
+        for child in cfg_node.value:
             # Assignment
-            if child.type == 'ASGN':
-                asgn = child
-                lhs = asgn.children[0]
-                rhs = asgn.children[1]
-                if rhs.is_term():
-                    cfg += '%s = %s\n' % (lhs.value, rhs.value)
-                else:
-                    temp_id, rhs_cfg = generate_CFG_for_expression(rhs)
-                    this_cfg = '%s = %s\n' % (lhs.value, temp_id)
-                    cfg += rhs_cfg + this_cfg
+            asgn = child
+            lhs = asgn.children[0]
+            rhs = asgn.children[1]
+            if rhs.is_term():
+                cfg += '%s = %s\n' % (lhs.value, rhs.value)
+            else:
+                temp_id, rhs_cfg = generate_block_text_recr(rhs)
+                this_cfg = '%s = %s\n' % (lhs.value, temp_id)
+                cfg += rhs_cfg + this_cfg
+    elif cfg_node.type == 'CONDITION_BLOCK':
+        cfg += '<bb %d>\n' % cfg_node.block_number
+        temp_id, child_cfg = generate_block_text_recr(cfg_node.value)
+        cfg += child_cfg
 
-    cfg += '<bb %d>\n' % -1
-    cfg += 'End\n'
+    cfg += '\n'
     return cfg
 
 
-class ASTNode:
-    def __init__(self, _type, value, is_constant=False):
+def generate_CFG(ast_node):
+    if ast_node.type == 'BODY':
+        cfg_node = CFGNode(ast_node.type, ast_node.value, ast_node.is_constant, ast_node.parent)
+        block_siblings = []
+        for child in ast_node.children:
+            if child.type == 'ASGN':
+                block_siblings.append(child)
+            else:
+                # Merge all contiguous assignment statements into one MASTNode
+                if len(block_siblings) != 0:
+                    assign_block = CFGNode('ASGN_BLOCK', block_siblings, parent=cfg_node, block_number=get_next_block_pk())
+                    cfg_node.add_child(assign_block)
+                    print(generate_block_text(assign_block))
+                    block_siblings = []
+                # Handle the odd child
+                if child.type == 'IF':
+                    # If node
+                    if_cfg_node = generate_CFG(child)
+                    if_cfg_node.parent = cfg_node
+                    cfg_node.add_child(if_cfg_node)
+                elif child.type == 'WHILE':
+                    # While node
+                    while_cfg_node = generate_CFG(child)
+                    # Attach While node to cfg_node
+                    while_cfg_node.parent = cfg_node
+                    cfg_node.add_child(while_cfg_node)
+
+        # Merge all contiguous assignment statements into one MASTNode
+        if len(block_siblings) != 0:
+            assign_block = CFGNode('ASGN_BLOCK', block_siblings, parent=cfg_node, block_number=get_next_block_pk())
+            cfg_node.add_child(assign_block)
+            print(generate_block_text(assign_block))
+
+        return cfg_node
+    elif ast_node.type == 'IF':
+        if_statement = ast_node
+        if_cfg_node = CFGNode('IF_BLOCK', if_statement.value, if_statement.is_constant)
+        # Compound condition node
+        cc_cfg_node = CFGNode('CONDITION_BLOCK',if_statement.children[0], block_number=get_next_block_pk())
+        cc_cfg_node.parent = if_cfg_node
+        if_cfg_node.add_child(cc_cfg_node)
+        print(generate_block_text(cc_cfg_node))
+        # If body node
+        if_body = if_statement.children[1]
+        if_body_cfg_node = generate_CFG(if_body)
+        if_body_cfg_node.parent = if_cfg_node
+        if_cfg_node.add_child(if_body_cfg_node)
+        # Else body node
+        if len(if_statement.children) == 3:
+            else_body = if_statement.children[2]
+            else_body_cfg_node = generate_CFG(else_body)
+            else_body_cfg_node.parent = if_cfg_node
+            if_cfg_node.add_child(else_body_cfg_node)
+        return if_cfg_node
+    elif ast_node.type == 'WHILE':
+        while_statement = ast_node
+        while_cfg_node = CFGNode('WHILE_BLOCK', while_statement.value, while_statement.is_constant)
+        # Compound condition node
+        cc_cfg_node = CFGNode('CONDITION_BLOCK',while_statement.children[0], block_number=get_next_block_pk())
+        cc_cfg_node.parent = while_cfg_node
+        while_cfg_node.add_child(cc_cfg_node)
+        print(generate_block_text(cc_cfg_node))
+        # While body node
+        while_body = while_statement.children[1]
+        while_body_cfg_node = generate_CFG(while_body)
+        while_body_cfg_node.parent = while_cfg_node
+        while_cfg_node.add_child(while_body_cfg_node)
+        return while_cfg_node        
+
+
+
+class CFGNode:
+    """
+    Nodes are list of assignments or a compound_condition
+    """
+    def __init__(self, _type, value, is_constant=False, parent=None, block_number=None):
         self.type = _type
         self.value = value
-        self.children = []
+        self.parent = parent
         self.is_constant = is_constant
+        self.children = []
+        self.block_number = block_number
+
+    def add_child(self, child):
+        self.children.append(child)
+
+
+class ASTNode:
+    def __init__(self, _type, value, is_constant=False, parent=None):
+        self.type = _type
+        self.value = value
+        self.parent = parent
+        self.is_constant = is_constant
+        self.children = []
 
 
     def add_child(self, child):
@@ -153,7 +251,7 @@ tokens = [
     'PLUS', 'MINUS',
     'DIVIDE',
     'GT', 'LT', 'GE', 'LE', 'EE', 'NE',
-    'LOGICAL_AND', 'LOGICAL_OR',
+    'LOGICAL_AND', 'LOGICAL_OR', 'EXCLAMATION'
 
 ]
 
@@ -186,6 +284,7 @@ t_LT = r'<'
 
 t_LOGICAL_AND = r'&&'
 t_LOGICAL_OR = r'\|\|'
+t_EXCLAMATION = r'!'
 
 
 def t_ID(t):
@@ -227,9 +326,12 @@ def p_code(p):
     body = p[6]
     with open(input_file_name + '.ast1', 'w') as the_file:
         the_file.write(body.text_repr(0))
+
     cfg = generate_CFG(body)
-    with open(input_file_name + '.cfg1', 'w') as the_file:
-        the_file.write(cfg)
+
+    # cfg = generate_block_text(body)
+    # with open(input_file_name + '.cfg1', 'w') as the_file:
+    #     the_file.write(cfg)
 
 
 def p_body(p):
@@ -243,10 +345,12 @@ def p_body(p):
         body = ASTNode('BODY', 'body')
     elif len(p) == 3:
         body = p[2]
+        p[1].parent = body    
         body.children = [p[1]] + body.children
     elif len(p) == 4:
         body = p[3]
         if p[1] is not None:
+            p[1].parent = body
             body.children = [p[1]] + body.children
 
     p[0] = body
@@ -257,21 +361,31 @@ def p_compound_condition(p):
     compound_condition : compound_condition LOGICAL_AND compound_condition
                        | compound_condition LOGICAL_OR compound_condition
                        | L_PAREN compound_condition R_PAREN
+                       | EXCLAMATION condition
                        | condition
     """
     if len(p) == 4:
         if p[2] == '&&':
             node = ASTNode('AND', '&&', p[1].is_constant and p[3].is_constant)
+            p[1].parent = node
             node.add_child(p[1])
+            p[3].parent = node
             node.add_child(p[3])
             p[0] = node
         elif p[2] == '||':
             node = ASTNode('OR', '||', p[1].is_constant and p[3].is_constant)
+            p[1].parent = node
             node.add_child(p[1])
+            p[3].parent = node
             node.add_child(p[3])
             p[0] = node
         elif p[1] == '(' and p[3] == ')':
             p[0] = p[2]
+    elif len(p) == 3:
+        node = ASTNode('NOT', '!', p[2].is_constant)
+        p[2].parent = node
+        node.add_child(p[2])
+        p[0] = node
     elif len(p) == 2:
         p[0] = p[1]
 
@@ -287,32 +401,44 @@ def p_condition(p):
     """
     if p[2] == '==':
         node = ASTNode('EQ', '==', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '!=':
         node = ASTNode('NE', '!=', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '>=':
         node = ASTNode('GE', '>=', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '>':
         node = ASTNode('GT', '>', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '<=':
         node = ASTNode('LE', '<=', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '<':
         node = ASTNode('LT', '<', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
 
@@ -323,7 +449,9 @@ def p_while_block(p):
     while_block : WHILE L_PAREN compound_condition R_PAREN if_else_while_body
     """
     while_block = ASTNode('WHILE', 'while')
+    p[3].parent = while_block
     while_block.add_child(p[3])
+    p[5].parent = while_block
     while_block.add_child(p[5])
     p[0] = while_block
 
@@ -336,9 +464,12 @@ def p_if_block(p):
                 | IF L_PAREN compound_condition R_PAREN if_else_while_body ELSE if_block
     """
     if_block = ASTNode('IF', 'if')
+    p[3].parent = if_block
     if_block.add_child(p[3])
+    p[5].parent = if_block
     if_block.add_child(p[5])
     if len(p) == 8:
+        p[7].parent = if_block
         if_block.add_child(p[7])
     p[0] = if_block
 
@@ -354,6 +485,7 @@ def p_if_else_while_body(p):
         p[0] = ASTNode('BODY', 'body')
     elif len(p) == 3:
         body = ASTNode('BODY', 'body')
+        p[1].parent = body
         body.add_child(p[1])
         p[0] = body
     elif len(p) == 4:
@@ -416,14 +548,19 @@ def p_assignment(p):
             raise SyntaxError
         id_node = ASTNode('VAR', p[1])
         node = ASTNode('ASGN', '=')
+        id_node.parent = node
         node.add_child(id_node)
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif len(p) == 5:
         asterisk_node = ASTNode('DEREF', '*%s' % p[2].value)
+        p[2].parent = asterisk_node
         asterisk_node.add_child(p[2])
         node = ASTNode('ASGN', '=')
+        asterisk_node.parent = node
         node.add_child(asterisk_node)
+        p[4].parent = node
         node.add_child(p[4])
         p[0] = node
 
@@ -438,22 +575,30 @@ def p_expression_binary_op(p):
     """
     if p[2] == '+':
         node = ASTNode('PLUS', '+', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '-':
         node = ASTNode('MINUS', '-', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '*':
         node = ASTNode('MUL', '*', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
     elif p[2] == '/':
         node = ASTNode('DIV', '/', p[1].is_constant and p[3].is_constant)
+        p[1].parent = node
         node.add_child(p[1])
+        p[3].parent = node
         node.add_child(p[3])
         p[0] = node
 
@@ -461,6 +606,7 @@ def p_expression_binary_op(p):
 def p_expression_uminus(p):
     """expression : MINUS expression %prec U_MINUS"""
     node = ASTNode('UMINUS', '-', p[2].is_constant)
+    p[2].parent = node
     node.add_child(p[2])
     p[0] = node
 
@@ -493,10 +639,12 @@ def p_term(p):
     elif len(p) == 3:
         if p[1] == '*':
             node = ASTNode('DEREF', '*%s' % p[2].value)
+            p[2].parent = node
             node.add_child(p[2])
             p[0] = node
         elif p[1] == '&':
             node = ASTNode('ADDR', '&%s' % p[2].value)
+            p[2].parent = node
             node.add_child(p[2])
             p[0] = node
 
