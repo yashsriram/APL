@@ -11,11 +11,14 @@ pointer_id_list = []
 static_id_list = []
 no_assignments = 0
 temp_pk = 0
+
+
 def get_next_temp_pk():
     global temp_pk
     prev_tpk = temp_pk
     temp_pk += 1
     return 't%d' % prev_tpk
+
 
 def generate_CFG_for_expression(expression_node):
     """
@@ -24,28 +27,40 @@ def generate_CFG_for_expression(expression_node):
         2. A term is also an expression
         3. If the node is not a term then it is a subtree ending in term leaves
     """
-    lhs = expression_node.children[0]
-    rhs = expression_node.children[1]
-    if lhs.is_term() and rhs.is_term():
-        ret_temp_id = get_next_temp_pk()
-        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, rhs.value)
-        return ret_temp_id, this_cfg
-    elif not lhs.is_term() and rhs.is_term():
-        temp_id, lhs_cfg = generate_CFG_for_expression(lhs)
-        ret_temp_id = get_next_temp_pk()
-        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, expression_node.value, rhs.value)
-        return ret_temp_id, lhs_cfg + this_cfg
-    elif lhs.is_term() and not rhs.is_term():
-        temp_id, rhs_cfg = generate_CFG_for_expression(rhs)
-        ret_temp_id = get_next_temp_pk()
-        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, temp_id)
-        return ret_temp_id, rhs_cfg + this_cfg
-    else:
-        temp_id_lhs, lhs_cfg = generate_CFG_for_expression(lhs)
-        temp_id_rhs, rhs_cfg = generate_CFG_for_expression(rhs)
-        ret_temp_id = get_next_temp_pk()
-        this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, expression_node.value, temp_id_rhs)
-        return ret_temp_id, lhs_cfg + rhs_cfg + this_cfg
+    if len(expression_node.children) == 2:
+        lhs = expression_node.children[0]
+        rhs = expression_node.children[1]
+        if lhs.is_term() and rhs.is_term():
+            ret_temp_id = get_next_temp_pk()
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, rhs.value)
+            return ret_temp_id, this_cfg
+        elif not lhs.is_term() and rhs.is_term():
+            temp_id, lhs_cfg = generate_CFG_for_expression(lhs)
+            ret_temp_id = get_next_temp_pk()
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, expression_node.value, rhs.value)
+            return ret_temp_id, lhs_cfg + this_cfg
+        elif lhs.is_term() and not rhs.is_term():
+            temp_id, rhs_cfg = generate_CFG_for_expression(rhs)
+            ret_temp_id = get_next_temp_pk()
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, temp_id)
+            return ret_temp_id, rhs_cfg + this_cfg
+        else:
+            temp_id_lhs, lhs_cfg = generate_CFG_for_expression(lhs)
+            temp_id_rhs, rhs_cfg = generate_CFG_for_expression(rhs)
+            ret_temp_id = get_next_temp_pk()
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, expression_node.value, temp_id_rhs)
+            return ret_temp_id, lhs_cfg + rhs_cfg + this_cfg
+    elif len(expression_node.children) == 1:
+        child_node = expression_node.children[0]
+        if child_node.is_term():
+            ret_temp_id = get_next_temp_pk()
+            this_cfg = '%s = %s%s\n' % (ret_temp_id, expression_node.value, child_node.value)
+            return ret_temp_id, this_cfg
+        else:
+            temp_id, child_cfg = generate_CFG_for_expression(child_node)
+            ret_temp_id = get_next_temp_pk()
+            this_cfg = '%s = %s%s\n' % (ret_temp_id, expression_node.value, temp_id)
+            return ret_temp_id, child_cfg + this_cfg
 
 
 def generate_CFG(node):
