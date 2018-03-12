@@ -3,7 +3,7 @@
 import sys
 import ply.lex as lex
 import ply.yacc as yacc
-from util import ASTNode, generate_CFG
+from util import ASTNode, generate_CFG , print_CFG
 
 ########################################################################################
 
@@ -113,10 +113,8 @@ def p_code(p):
         the_file.write(body.text_repr(0))
 
     cfg = generate_CFG(body)
-
-    # cfg = generate_block_text(body)
-    # with open(input_file_name + '.cfg1', 'w') as the_file:
-    #     the_file.write(cfg)
+    with open(input_file_name + '.cfg1', 'w') as the_file:
+        the_file.write('\n' + print_CFG(cfg))
 
 
 def p_body(p):
