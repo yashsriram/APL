@@ -16,156 +16,47 @@ def get_next_temp_pk():
     return 't%d' % prev_tpk
 
 
-def cfg_node_to_text_recr(expression_node):
+def taget_code_of_asgn_or_condn(ast_node):
     """
     Note:
         1. Expression node has exactly two children
         2. A term is also an expression
         3. If the node is not a term then it is a subtree ending in term leaves
     """
-    if len(expression_node.children) == 2:
-        lhs = expression_node.children[0]
-        rhs = expression_node.children[1]
+    if len(ast_node.children) == 2:
+        lhs = ast_node.children[0]
+        rhs = ast_node.children[1]
         if lhs.is_term() and rhs.is_term():
             ret_temp_id = get_next_temp_pk()
-            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, rhs.value)
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, ast_node.value, rhs.value)
             return ret_temp_id, this_cfg
         elif not lhs.is_term() and rhs.is_term():
-            temp_id, lhs_cfg = cfg_node_to_text_recr(lhs)
+            temp_id, lhs_cfg = taget_code_of_asgn_or_condn(lhs)
             ret_temp_id = get_next_temp_pk()
-            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, expression_node.value, rhs.value)
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, ast_node.value, rhs.value)
             return ret_temp_id, lhs_cfg + this_cfg
         elif lhs.is_term() and not rhs.is_term():
-            temp_id, rhs_cfg = cfg_node_to_text_recr(rhs)
+            temp_id, rhs_cfg = taget_code_of_asgn_or_condn(rhs)
             ret_temp_id = get_next_temp_pk()
-            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, expression_node.value, temp_id)
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, ast_node.value, temp_id)
             return ret_temp_id, rhs_cfg + this_cfg
         else:
-            temp_id_lhs, lhs_cfg = cfg_node_to_text_recr(lhs)
-            temp_id_rhs, rhs_cfg = cfg_node_to_text_recr(rhs)
+            temp_id_lhs, lhs_cfg = taget_code_of_asgn_or_condn(lhs)
+            temp_id_rhs, rhs_cfg = taget_code_of_asgn_or_condn(rhs)
             ret_temp_id = get_next_temp_pk()
-            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, expression_node.value, temp_id_rhs)
+            this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, ast_node.value, temp_id_rhs)
             return ret_temp_id, lhs_cfg + rhs_cfg + this_cfg
-    elif len(expression_node.children) == 1:
-        child_node = expression_node.children[0]
+    elif len(ast_node.children) == 1:
+        child_node = ast_node.children[0]
         if child_node.is_term():
             ret_temp_id = get_next_temp_pk()
-            this_cfg = '%s = %s%s\n' % (ret_temp_id, expression_node.value, child_node.value)
+            this_cfg = '%s = %s%s\n' % (ret_temp_id, ast_node.value, child_node.value)
             return ret_temp_id, this_cfg
         else:
-            temp_id, child_cfg = cfg_node_to_text_recr(child_node)
+            temp_id, child_cfg = taget_code_of_asgn_or_condn(child_node)
             ret_temp_id = get_next_temp_pk()
-            this_cfg = '%s = %s%s\n' % (ret_temp_id, expression_node.value, temp_id)
+            this_cfg = '%s = %s%s\n' % (ret_temp_id, ast_node.value, temp_id)
             return ret_temp_id, child_cfg + this_cfg
-
-
-def cfg_node_to_text(cfg_node):
-    txt = ''
-    if cfg_node.type == 'ASGN_BLOCK':
-        txt += '<bb %d>\n' % cfg_node.block_number
-        for child in cfg_node.value:
-            # Assignment
-            asgn = child
-            lhs = asgn.children[0]
-            rhs = asgn.children[1]
-            if rhs.is_term():
-                txt += '%s = %s\n' % (lhs.value, rhs.value)
-            else:
-                temp_id, rhs_cfg = cfg_node_to_text_recr(rhs)
-                this_cfg = '%s = %s\n' % (lhs.value, temp_id)
-                txt += rhs_cfg + this_cfg
-        goto = goto_block_number(cfg_node)
-        txt += 'goto <bb %d>\n' % goto
-
-    elif cfg_node.type == 'CONDITION_BLOCK':
-        txt += '<bb %d>\n' % cfg_node.block_number
-        temp_id, child_cfg = cfg_node_to_text_recr(cfg_node.value)
-        txt += child_cfg
-        goto_true,goto_false = goto_block_number(cfg_node)
-        txt += 'if(%s) goto <bb %d>\n' % (temp_id, goto_true)
-        txt += 'else goto <bb %d>\n' % goto_false
-
-    elif cfg_node.type == 'END_BLOCK':
-        txt += '<bb %d>\nEnd' % cfg_node.block_number
-
-    return txt
-
-
-def goto_block_number(cfg_node):
-    curr_index = cfg_node.index
-    parent = cfg_node.parent
-    # ASGN_BLOCK
-    if cfg_node.type == 'ASGN_BLOCK':
-        # ASGN_BLOCK can have only BODY_BLOCK as parent
-        if len(parent.children) == curr_index + 1:
-            return goto_block_number(parent)
-        else:
-            return parent.children[curr_index + 1].block_number
-    # BODY_BLOCK
-    elif cfg_node.type == 'BODY_BLOCK':
-        # BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
-        if parent.type == 'IF_BLOCK':
-            return goto_block_number(parent)
-        elif parent.type == 'WHILE_BLOCK':
-            return parent.children[curr_index - 1].block_number
-    # IF_BLOCK
-    elif cfg_node.type == 'IF_BLOCK':
-        # IF_BLOCK can have only BODY_BLOCK or IF_BLOCK as parent
-        if parent.type == 'BODY_BLOCK':
-            if len(parent.children) == curr_index + 1:
-                return goto_block_number(parent)
-            else:
-                return parent.children[curr_index + 1].block_number
-        elif parent.type == 'IF_BLOCK':
-            return goto_block_number(parent)
-    # WHILE_BLOCK
-    elif cfg_node.type == 'WHILE_BLOCK':
-        # WHILE_BLOCK can have only BODY_BLOCK as parent
-            if len(parent.children) == curr_index + 1:
-                return goto_block_number(parent)
-            else:
-                return parent.children[curr_index + 1].block_number
-    # CONDITION_BLOCK
-    elif cfg_node.type == 'CONDITION_BLOCK':
-        # CONDITION_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
-        true_goto = None
-        false_goto = None
-        if parent.type == 'IF_BLOCK':
-            # if
-            if_cfg_node = parent.children[1]
-            if if_cfg_node.block_number is not None:
-                true_goto = if_cfg_node.block_number
-            else:
-                true_goto = goto_block_number(if_cfg_node)
-            # else
-            if len(parent.children) == 2:
-                false_goto = goto_block_number(parent)
-            elif len(parent.children) == 3:
-                else_cfg_node = parent.children[2]
-                if else_cfg_node.block_number is not None:
-                    false_goto = else_cfg_node.block_number
-                else:
-                    false_goto = goto_block_number(else_cfg_node)
-
-        elif parent.type == 'WHILE_BLOCK':
-            while_body_cfg_node = parent.children[1]
-            if while_body_cfg_node.block_number is not None:
-                true_goto = while_body_cfg_node.block_number
-            else:
-                true_goto = goto_block_number(while_body_cfg_node)
-            false_goto = goto_block_number(parent)
-
-        return true_goto, false_goto
-
-
-def print_CFG(cfg_node):
-    if cfg_node.type == 'ASGN_BLOCK' or cfg_node.type == 'CONDITION_BLOCK' or cfg_node.type == 'END_BLOCK':
-        return cfg_node_to_text(cfg_node) + '\n'
-    else:
-        txt = ''
-        for child in cfg_node.children:
-            txt += print_CFG(child)
-        return txt
 
 
 def generate_CFG(ast_node, index=None):
@@ -294,8 +185,118 @@ class CFGNode:
         self.block_number = block_number
         self.index = index
 
+
     def add_child(self, child):
         self.children.append(child)
+
+
+    def goto_block_number(self):
+        curr_index = self.index
+        parent = self.parent
+        # ASGN_BLOCK
+        if self.type == 'ASGN_BLOCK':
+            # ASGN_BLOCK can have only BODY_BLOCK as parent
+            if len(parent.children) == curr_index + 1:
+                return parent.goto_block_number()
+            else:
+                return parent.children[curr_index + 1].block_number
+        # BODY_BLOCK
+        elif self.type == 'BODY_BLOCK':
+            # BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
+            if parent.type == 'IF_BLOCK':
+                return parent.goto_block_number()
+            elif parent.type == 'WHILE_BLOCK':
+                return parent.children[curr_index - 1].block_number
+        # IF_BLOCK
+        elif self.type == 'IF_BLOCK':
+            # IF_BLOCK can have only BODY_BLOCK or IF_BLOCK as parent
+            if parent.type == 'BODY_BLOCK':
+                if len(parent.children) == curr_index + 1:
+                    return parent.goto_block_number()
+                else:
+                    return parent.children[curr_index + 1].block_number
+            elif parent.type == 'IF_BLOCK':
+                return parent.goto_block_number()
+        # WHILE_BLOCK
+        elif self.type == 'WHILE_BLOCK':
+            # WHILE_BLOCK can have only BODY_BLOCK as parent
+                if len(parent.children) == curr_index + 1:
+                    return parent.goto_block_number()
+                else:
+                    return parent.children[curr_index + 1].block_number
+        # CONDITION_BLOCK
+        elif self.type == 'CONDITION_BLOCK':
+            # CONDITION_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
+            true_goto = None
+            false_goto = None
+            if parent.type == 'IF_BLOCK':
+                # if
+                if_cfg_node = parent.children[1]
+                if if_cfg_node.block_number is not None:
+                    true_goto = if_cfg_node.block_number
+                else:
+                    true_goto = if_cfg_node.goto_block_number()
+                # else
+                if len(parent.children) == 2:
+                    false_goto = parent.goto_block_number()
+                elif len(parent.children) == 3:
+                    else_cfg_node = parent.children[2]
+                    if else_cfg_node.block_number is not None:
+                        false_goto = else_cfg_node.block_number
+                    else:
+                        false_goto = else_cfg_node.goto_block_number()
+
+            elif parent.type == 'WHILE_BLOCK':
+                while_body_cfg_node = parent.children[1]
+                if while_body_cfg_node.block_number is not None:
+                    true_goto = while_body_cfg_node.block_number
+                else:
+                    true_goto = while_body_cfg_node.goto_block_number()
+                false_goto = parent.goto_block_number()
+
+            return true_goto, false_goto
+
+
+    def text_repr(self):
+        txt = ''
+        if self.type == 'ASGN_BLOCK':
+            txt += '<bb %d>\n' % self.block_number
+            for child in self.value:
+                # Assignment
+                asgn = child
+                lhs = asgn.children[0]
+                rhs = asgn.children[1]
+                if rhs.is_term():
+                    txt += '%s = %s\n' % (lhs.value, rhs.value)
+                else:
+                    temp_id, rhs_cfg = taget_code_of_asgn_or_condn(rhs)
+                    this_cfg = '%s = %s\n' % (lhs.value, temp_id)
+                    txt += rhs_cfg + this_cfg
+            goto = self.goto_block_number()
+            txt += 'goto <bb %d>\n' % goto
+
+        elif self.type == 'CONDITION_BLOCK':
+            txt += '<bb %d>\n' % self.block_number
+            temp_id, child_cfg = taget_code_of_asgn_or_condn(self.value)
+            txt += child_cfg
+            goto_true,goto_false = self.goto_block_number()
+            txt += 'if(%s) goto <bb %d>\n' % (temp_id, goto_true)
+            txt += 'else goto <bb %d>\n' % goto_false
+
+        elif self.type == 'END_BLOCK':
+            txt += '<bb %d>\nEnd' % self.block_number
+
+        return txt
+
+
+    def tree_text_repr(self):
+        if self.type == 'ASGN_BLOCK' or self.type == 'CONDITION_BLOCK' or self.type == 'END_BLOCK':
+            return self.text_repr() + '\n'
+        else:
+            txt = ''
+            for child in self.children:
+                txt += child.tree_text_repr()
+            return txt
 
 
 class ASTNode:
@@ -324,18 +325,18 @@ class ASTNode:
             return False
 
 
-    def text_repr(self, tabs):
+    def tree_text_repr(self, tabs):
         ans = ''
         if self.type == 'VAR' or self.type == 'CONST':
             ans += '\t' * tabs + str(self.type) + '(' + str(self.value) + ')' + '\n'
         elif self.type == 'BODY':
             for i in range(len(self.children)):
-                ans += self.children[i].text_repr(tabs)
+                ans += self.children[i].tree_text_repr(tabs)
         else:
             ans += '\t' * tabs + str(self.type) + '\n'
             ans += '\t' * tabs + '(' + '\n'
             for i in range(len(self.children)):
-                ans += self.children[i].text_repr(tabs + 1)
+                ans += self.children[i].tree_text_repr(tabs + 1)
                 # Don't print last ,
                 if i != len(self.children) - 1:
                     ans += '\t' * (tabs + 1) + ',' + '\n'

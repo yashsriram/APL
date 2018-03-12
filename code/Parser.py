@@ -3,7 +3,7 @@
 import sys
 import ply.lex as lex
 import ply.yacc as yacc
-from util import ASTNode, generate_CFG , print_CFG
+from util import ASTNode, generate_CFG
 
 ########################################################################################
 
@@ -110,11 +110,11 @@ def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
     body = p[6]
     with open(input_file_name + '.ast1', 'w') as the_file:
-        the_file.write(body.text_repr(0))
+        the_file.write(body.tree_text_repr(0))
 
     cfg = generate_CFG(body)
     with open(input_file_name + '.cfg1', 'w') as the_file:
-        the_file.write('\n' + print_CFG(cfg))
+        the_file.write('\n' + cfg.tree_text_repr())
 
 
 def p_body(p):
