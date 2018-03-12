@@ -95,9 +95,9 @@ def generate_block_text(cfg_node):
     return cfg
 
 
-def generate_CFG(ast_node):
+def generate_CFG(ast_node, index=None):
     if ast_node.type == 'BODY':
-        cfg_node = CFGNode(ast_node.type, ast_node.value, ast_node.is_constant, ast_node.parent)
+        body_cfg_node = CFGNode('BODY_BLOCK', 'body_block', ast_node.is_constant, index=index)
         block_siblings = []
         for child in ast_node.children:
             if child.type == 'ASGN':
@@ -105,78 +105,108 @@ def generate_CFG(ast_node):
             else:
                 # Merge all contiguous assignment statements into one MASTNode
                 if len(block_siblings) != 0:
-                    assign_block = CFGNode('ASGN_BLOCK', block_siblings, parent=cfg_node, block_number=get_next_block_pk())
-                    cfg_node.add_child(assign_block)
+                    assign_block = CFGNode('ASGN_BLOCK', block_siblings, 
+                        parent=body_cfg_node, 
+                        block_number=get_next_block_pk(), 
+                        index=len(body_cfg_node.children))
+                    body_cfg_node.add_child(assign_block)
                     print(generate_block_text(assign_block))
                     block_siblings = []
-                # Handle the odd child
                 if child.type == 'IF':
                     # If node
-                    if_cfg_node = generate_CFG(child)
-                    if_cfg_node.parent = cfg_node
-                    cfg_node.add_child(if_cfg_node)
+                    if_cfg_node = generate_CFG(child, len(body_cfg_node.children))
+                    if_cfg_node.parent = body_cfg_node
+                    body_cfg_node.add_child(if_cfg_node)
                 elif child.type == 'WHILE':
                     # While node
-                    while_cfg_node = generate_CFG(child)
-                    # Attach While node to cfg_node
-                    while_cfg_node.parent = cfg_node
-                    cfg_node.add_child(while_cfg_node)
+                    while_cfg_node = generate_CFG(child, len(body_cfg_node.children))
+                    # Attach While node to body_cfg_node
+                    while_cfg_node.parent = body_cfg_node
+                    body_cfg_node.add_child(while_cfg_node)
 
         # Merge all contiguous assignment statements into one MASTNode
         if len(block_siblings) != 0:
-            assign_block = CFGNode('ASGN_BLOCK', block_siblings, parent=cfg_node, block_number=get_next_block_pk())
-            cfg_node.add_child(assign_block)
+            assign_block = CFGNode('ASGN_BLOCK', block_siblings, 
+                parent=body_cfg_node, 
+                block_number=get_next_block_pk(),
+                index=len(body_cfg_node.children))
+            body_cfg_node.add_child(assign_block)
             print(generate_block_text(assign_block))
 
-        return cfg_node
+        # Give body block the same block number as its first child if it exists
+        if len(body_cfg_node.children) > 0:
+            body_cfg_node.block_number = body_cfg_node.children[0].block_number
+
+        return body_cfg_node
     elif ast_node.type == 'IF':
         if_statement = ast_node
-        if_cfg_node = CFGNode('IF_BLOCK', if_statement.value, if_statement.is_constant)
+        # Give if block the same block number as condition block (its first child)
+        block_num = get_next_block_pk()
+        if_cfg_node = CFGNode('IF_BLOCK', 'if_block', if_statement.is_constant, 
+            block_number=block_num, 
+            index=index)
         # Compound condition node
-        cc_cfg_node = CFGNode('CONDITION_BLOCK',if_statement.children[0], block_number=get_next_block_pk())
-        cc_cfg_node.parent = if_cfg_node
+        cc_cfg_node = CFGNode('CONDITION_BLOCK', if_statement.children[0], 
+            block_number=block_num, 
+            parent=if_cfg_node,
+            index=len(if_cfg_node.children))
         if_cfg_node.add_child(cc_cfg_node)
         print(generate_block_text(cc_cfg_node))
         # If body node
         if_body = if_statement.children[1]
-        if_body_cfg_node = generate_CFG(if_body)
+        if_body_cfg_node = generate_CFG(if_body, len(if_cfg_node.children))
         if_body_cfg_node.parent = if_cfg_node
         if_cfg_node.add_child(if_body_cfg_node)
         # Else body node
         if len(if_statement.children) == 3:
             else_body = if_statement.children[2]
-            else_body_cfg_node = generate_CFG(else_body)
+            else_body_cfg_node = generate_CFG(else_body, len(if_cfg_node.children))
             else_body_cfg_node.parent = if_cfg_node
             if_cfg_node.add_child(else_body_cfg_node)
         return if_cfg_node
     elif ast_node.type == 'WHILE':
         while_statement = ast_node
-        while_cfg_node = CFGNode('WHILE_BLOCK', while_statement.value, while_statement.is_constant)
+        # Give while block the same block number as condition block (its first child)
+        block_num = get_next_block_pk()
+        while_cfg_node = CFGNode('WHILE_BLOCK', 'while_block', while_statement.is_constant, 
+            block_number=block_num, 
+            index=index)
         # Compound condition node
-        cc_cfg_node = CFGNode('CONDITION_BLOCK',while_statement.children[0], block_number=get_next_block_pk())
-        cc_cfg_node.parent = while_cfg_node
+        cc_cfg_node = CFGNode('CONDITION_BLOCK',while_statement.children[0], 
+            block_number=block_num, 
+            parent=while_cfg_node,
+            index=len(while_cfg_node.children))
         while_cfg_node.add_child(cc_cfg_node)
         print(generate_block_text(cc_cfg_node))
         # While body node
         while_body = while_statement.children[1]
-        while_body_cfg_node = generate_CFG(while_body)
+        while_body_cfg_node = generate_CFG(while_body, len(while_cfg_node.children))
         while_body_cfg_node.parent = while_cfg_node
         while_cfg_node.add_child(while_body_cfg_node)
-        return while_cfg_node        
-
+        return while_cfg_node
 
 
 class CFGNode:
     """
-    Nodes are list of assignments or a compound_condition
+    type can be:
+        BODY_BLOCK
+        WHILE_BLOCK
+        IF_BLOCK
+        ASGN_BLOCK -> value = list of pointers to asgn ast nodes
+        CONDITION_BLOCK -> value = pointer to compound condition ast node
+
+    BODY_BLOCK has block number of its first child if exists else None
+    IF_BLOCK & WHILE_BLOCK have block number of its first child which definitely exists
+    ASGN_BLOCK & CONDITION_BLOCK have unique block numbers
     """
-    def __init__(self, _type, value, is_constant=False, parent=None, block_number=None):
+    def __init__(self, _type, value, is_constant=False, parent=None, block_number=None, index=None):
         self.type = _type
         self.value = value
         self.parent = parent
         self.is_constant = is_constant
         self.children = []
         self.block_number = block_number
+        self.index = index
 
     def add_child(self, child):
         self.children.append(child)
