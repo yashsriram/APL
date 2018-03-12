@@ -110,7 +110,7 @@ def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
     body = p[6]
     with open(input_file_name + '.ast1', 'w') as the_file:
-        the_file.write(body.tree_text_repr(0))
+        the_file.write('\n' * no_assignments + body.tree_text_repr(0))
 
     cfg = generate_CFG(body)
     with open(input_file_name + '.cfg1', 'w') as the_file:
