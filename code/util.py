@@ -78,8 +78,9 @@ def generate_block_text(cfg_node):
         cfg += '<bb %d>\n' % cfg_node.block_number
         temp_id, child_cfg = generate_block_text_recr(cfg_node.value)
         cfg += child_cfg
+    elif cfg_node.type == 'END_BLOCK':
+        cfg += '<bb %d>\nEnd\n' % cfg_node.block_number
 
-    cfg += '\n'
     return cfg
 
 
@@ -93,12 +94,12 @@ def generate_CFG(ast_node, index=None):
             else:
                 # Merge all contiguous assignment statements into one MASTNode
                 if len(block_siblings) != 0:
-                    assign_block = CFGNode('ASGN_BLOCK', block_siblings, 
+                    assign_cfg_node = CFGNode('ASGN_BLOCK', block_siblings, 
                         parent=body_cfg_node, 
                         block_number=get_next_block_pk(), 
                         index=len(body_cfg_node.children))
-                    body_cfg_node.add_child(assign_block)
-                    print(generate_block_text(assign_block))
+                    body_cfg_node.add_child(assign_cfg_node)
+                    print(generate_block_text(assign_cfg_node))
                     block_siblings = []
                 if child.type == 'IF':
                     # If node
@@ -114,16 +115,25 @@ def generate_CFG(ast_node, index=None):
 
         # Merge all contiguous assignment statements into one MASTNode
         if len(block_siblings) != 0:
-            assign_block = CFGNode('ASGN_BLOCK', block_siblings, 
+            assign_cfg_node = CFGNode('ASGN_BLOCK', block_siblings, 
                 parent=body_cfg_node, 
                 block_number=get_next_block_pk(),
                 index=len(body_cfg_node.children))
-            body_cfg_node.add_child(assign_block)
-            print(generate_block_text(assign_block))
+            body_cfg_node.add_child(assign_cfg_node)
+            print(generate_block_text(assign_cfg_node))
 
         # Give body block the same block number as its first child if it exists
         if len(body_cfg_node.children) > 0:
             body_cfg_node.block_number = body_cfg_node.children[0].block_number
+
+        # Add END_BLOCK cfg node to root body
+        if index is None:
+            end_cfg_node = CFGNode('END_BLOCK', 'End', 
+                parent=body_cfg_node, 
+                block_number=get_next_block_pk(),
+                index=len(body_cfg_node.children))
+            body_cfg_node.add_child(end_cfg_node)
+            print(generate_block_text(end_cfg_node))
 
         return body_cfg_node
     elif ast_node.type == 'IF':
@@ -174,6 +184,11 @@ def generate_CFG(ast_node, index=None):
         return while_cfg_node
 
 
+# def get_goto_block_number(cfg_node):
+#     if cfg_node.type == 'ASGN_BLOCK':
+#         pass
+
+
 class CFGNode:
     """
     type can be:
@@ -182,10 +197,12 @@ class CFGNode:
         IF_BLOCK
         ASGN_BLOCK -> value = list of pointers to asgn ast nodes
         CONDITION_BLOCK -> value = pointer to compound condition ast node
+        END_BLOCK
 
     BODY_BLOCK has block number of its first child if exists else None
     IF_BLOCK & WHILE_BLOCK have block number of its first child which definitely exists
     ASGN_BLOCK & CONDITION_BLOCK have unique block numbers
+    END_BLOCK has biggest block number
     """
     def __init__(self, _type, value, is_constant=False, parent=None, block_number=None, index=None):
         self.type = _type

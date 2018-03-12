@@ -1,4 +1,4 @@
 .idea
-parser.out
-parsetab.py
+code/parser.out
+code/parsetab.py
 __pycache__/
