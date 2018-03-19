@@ -130,12 +130,12 @@ def p_body(p):
     elif len(p) == 3:
         body = p[2]
         p[1].parent = body
-        body.children = [p[1]] + body.children
+        body.prepend_child(p[1])
     elif len(p) == 4:
         body = p[3]
         if p[1] is not None:
             p[1].parent = body
-            body.children = [p[1]] + body.children
+            body.prepend_child(p[1])
 
     p[0] = body
 

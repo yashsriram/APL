@@ -306,6 +306,9 @@ class ASTNode:
     def add_child(self, child):
         self.children.append(child)
 
+    def prepend_child(self, child):
+        self.children = [child] + self.children
+
     def is_term(self):
         """
         Returns whether the token stream comming from this node is a term or not.
