@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import sys
 import ply.lex as lex
 import ply.yacc as yacc
@@ -43,9 +41,12 @@ tokens = [
 tokens = tokens + list(reserved_keywords.values())
 
 t_ignore = ' \t'
+
+
 def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
+
 
 t_PLUS = r'\+'
 t_MINUS = r'-'
@@ -109,11 +110,11 @@ precedence = (
 def p_code(p):
     """code : VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
     body = p[6]
-    with open(input_file_name + '.ast1', 'w') as the_file:
+    with open(input_file_name + '.ast', 'w') as the_file:
         the_file.write('\n' * no_assignments + body.tree_text_repr(0))
 
     cfg = generate_CFG(body)
-    with open(input_file_name + '.cfg1', 'w') as the_file:
+    with open(input_file_name + '.cfg', 'w') as the_file:
         the_file.write('\n' + cfg.tree_text_repr())
 
 
@@ -128,7 +129,7 @@ def p_body(p):
         body = ASTNode('BODY', 'body')
     elif len(p) == 3:
         body = p[2]
-        p[1].parent = body    
+        p[1].parent = body
         body.children = [p[1]] + body.children
     elif len(p) == 4:
         body = p[3]
@@ -137,6 +138,7 @@ def p_body(p):
             body.children = [p[1]] + body.children
 
     p[0] = body
+
 
 # -------------------------------- CONDITION --------------------------------
 def p_compound_condition(p):
@@ -229,7 +231,7 @@ def p_condition(p):
 # -------------------------------- WHILE BLOCK --------------------------------
 def p_while_block(p):
     """
-    while_block : WHILE L_PAREN compound_condition R_PAREN if_else_while_body
+    while_block : WHILE L_PAREN compound_condition R_PAREN if_else_while_common_body
     """
     while_block = ASTNode('WHILE', 'while')
     p[3].parent = while_block
@@ -242,9 +244,9 @@ def p_while_block(p):
 # -------------------------------- IF BLOCK --------------------------------
 def p_if_block(p):
     """
-    if_block : IF L_PAREN compound_condition R_PAREN if_else_while_body
-                | IF L_PAREN compound_condition R_PAREN if_else_while_body ELSE if_else_while_body
-                | IF L_PAREN compound_condition R_PAREN if_else_while_body ELSE if_block
+    if_block : IF L_PAREN compound_condition R_PAREN if_else_while_common_body
+                | IF L_PAREN compound_condition R_PAREN if_else_while_common_body ELSE if_block
+                | IF L_PAREN compound_condition R_PAREN if_else_while_common_body ELSE if_else_while_common_body
     """
     if_block = ASTNode('IF', 'if')
     p[3].parent = if_block
@@ -258,9 +260,9 @@ def p_if_block(p):
 
 
 # -------------------------------- IF ELSE WHILE COMMON BODY --------------------------------
-def p_if_else_while_body(p):
+def p_if_else_while_common_body(p):
     """
-    if_else_while_body : SEMICOLON
+    if_else_while_common_body : SEMICOLON
                 | assignment SEMICOLON
                 | L_CURLY body R_CURLY
     """
@@ -430,6 +432,7 @@ def p_term(p):
             p[2].parent = node
             node.add_child(p[2])
             p[0] = node
+
 
 # -------------------------------- ERROR --------------------------------
 def p_error(p):
