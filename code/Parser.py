@@ -18,6 +18,7 @@ reserved_keywords = {
     'int': 'INT',
     'while': 'WHILE',
     'if': 'IF',
+    'float': 'FLOAT',
     'else': 'ELSE',
 }
 
@@ -30,7 +31,8 @@ tokens = [
     'EQUALS',
     'AMPERSAND',
     'ASTERISK',
-    'NUMBER',
+    'INT_LIT',
+    'FLOAT_LIT',
     'PLUS', 'MINUS',
     'DIVIDE',
     'GT', 'LT', 'GE', 'LE', 'EE', 'NE',
@@ -79,7 +81,17 @@ def t_ID(t):
     return t
 
 
-def t_NUMBER(t):
+def t_FLOAT_LIT(t):
+    r'\d+\.\d*'
+    try:
+        t.value = float(t.value)
+    except ValueError:
+        print("Float value too large %f", t.value)
+        t.value = 0
+    return t
+
+
+def t_INT_LIT(t):
     r'\d+'
     try:
         t.value = int(t.value)
@@ -280,7 +292,7 @@ def p_if_else_while_common_body(p):
 # -------------------------------- STATEMENT --------------------------------
 def p_statement(p):
     """
-    statement : INT dlist
+    statement : type dlist
                 | assignment
     """
     if len(p) == 2:
@@ -288,6 +300,14 @@ def p_statement(p):
 
 
 # -------------------------------- DECLARATION --------------------------------
+def p_type(p):
+    """
+    type : INT
+        | FLOAT
+    """
+    pass
+
+
 def p_dlist(p):
     """
     dlist : declaration COMMA dlist
@@ -401,8 +421,13 @@ def p_expression_group(p):
     p[0] = p[2]
 
 
-def p_expression_number(p):
-    """expression : NUMBER"""
+def p_expression_int_lit(p):
+    """expression : INT_LIT"""
+    p[0] = ASTNode('CONST', p[1], True)
+
+
+def p_expression_float_lit(p):
+    """expression : FLOAT_LIT"""
     p[0] = ASTNode('CONST', p[1], True)
 
 
