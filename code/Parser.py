@@ -405,7 +405,7 @@ def p_pointer_declaration(p):
     pass
 
 
-def p_r_pointer_declaration(p):
+def p_pointer_declaration_r(p):
     """
     pointer_declaration : ASTERISK pointer_declaration %prec DE_REF
                         | ID
