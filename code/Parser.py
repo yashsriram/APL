@@ -119,25 +119,92 @@ precedence = (
 )
 
 
+# def p_code(p):
+#     """code : global_dlist func_list VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
+#     body = p[8]
+#     with open(input_file_name + '.ast', 'w') as the_file:
+#         the_file.write('\n' * no_assignments + body.tree_text_repr(0))
+
+#     cfg = generate_CFG(body)
+#     with open(input_file_name + '.cfg', 'w') as the_file:
+#         the_file.write('\n' + cfg.tree_text_repr())
+
+# -------------------------------- CODE --------------------------------
 def p_code(p):
-    """code : global_dlist VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
-    body = p[7]
-    with open(input_file_name + '.ast', 'w') as the_file:
-        the_file.write('\n' * no_assignments + body.tree_text_repr(0))
-
-    cfg = generate_CFG(body)
-    with open(input_file_name + '.cfg', 'w') as the_file:
-        the_file.write('\n' + cfg.tree_text_repr())
+    """
+    code : global_dlist code
+        | function code
+        |
+    """
+    pass
 
 
+# -------------------------------- GLOBALS --------------------------------
 def p_global_dlist(p):
     """
-    global_dlist : type dlist SEMICOLON global_dlist
+    global_dlist : type dlist SEMICOLON
+    """
+    pass
+
+
+# -------------------------------- FUNCTION --------------------------------
+def p_function(p):
+    """
+    function : type return_term L_PAREN param_list R_PAREN L_CURLY body R_CURLY
+            | type return_term L_PAREN param_list R_PAREN SEMICOLON
+            | VOID void_id L_PAREN param_list R_PAREN L_CURLY body R_CURLY
+            | VOID void_id L_PAREN param_list R_PAREN SEMICOLON
+    """
+    pass
+
+
+def p_void_id(p):
+    """
+    void_id : ID
+            | MAIN
+    """
+    pass
+
+
+def p_return_term(p):
+    """
+    return_term : function_term
+    """
+    pass
+
+
+def p_param_list(p):
+    """
+    param_list : param_list_non_empty
                 |
     """
     pass
 
 
+def p_param_list_non_empty(p):
+    """
+    param_list_non_empty : type function_term COMMA param_list_non_empty
+            | type function_term
+    """
+    pass
+
+
+def p_function_term(p):
+    """
+    function_term : ASTERISK function_term_r
+    """
+    pass
+
+
+def p_function_term_r(p):
+    """
+    function_term_r : ASTERISK function_term_r
+                        | ID
+    """
+    pass
+
+
+# -------------------------------- BODY --------------------------------
 def p_body(p):
     """
     body : statement SEMICOLON body
