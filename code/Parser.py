@@ -6,8 +6,6 @@ from util import ASTNode, generate_CFG
 ########################################################################################
 
 input_file_name = ''
-pointer_id_list = []
-static_id_list = []
 no_assignments = 0
 
 ########################################################################################
@@ -391,27 +389,12 @@ def p_dlist(p):
     pass
 
 
-def p_static_declaration(p):
+def p_declaration(p):
     """
     declaration : ID
-    """
-    static_id_list.append(p[1])
-
-
-def p_pointer_declaration(p):
-    """
-    declaration : ASTERISK pointer_declaration %prec DE_REF
+                | ASTERISK declaration %prec DE_REF
     """
     pass
-
-
-def p_pointer_declaration_r(p):
-    """
-    pointer_declaration : ASTERISK pointer_declaration %prec DE_REF
-                        | ID
-    """
-    if len(p) == 2:
-        pointer_id_list.append(p[1])
 
 
 # -------------------------------- ASSIGNMENT --------------------------------
@@ -446,6 +429,48 @@ def p_assignment(p):
 
 
 # -------------------------------- EXPRESSION --------------------------------
+def p_expression_function_call(p):
+    """
+    expression : ID L_PAREN arg_list R_PAREN
+    """
+    function_call = ASTNode('FUNCTION', 'function')
+    id_node = ASTNode('VAR', p[1])
+    id_node.parent = function_call
+    function_call.add_child(id_node)
+    arg_list = p[3]
+    arg_list.parent = function_call
+    function_call.add_child(arg_list)
+    p[0] = function_call
+
+
+def p_arg_list(p):
+    """
+    arg_list : arg_list_non_empty
+            |
+    """
+    if len(p) == 1:
+        p[0] = ASTNode('PARAM_LIST', 'param_list')
+    elif len(p) == 2:
+        p[0] = p[1]
+
+
+def p_arg_list_non_empty(p):
+    """
+    arg_list_non_empty : term COMMA arg_list_non_empty
+                    | term
+    """
+    if len(p) == 2:
+        param_list = ASTNode('PARAM_LIST', 'param_list')
+        p[1].parent = param_list
+        param_list.add_child(p[1])
+    elif len(p) == 4:
+        param_list = p[3]
+        p[1].parent = param_list
+        param_list.prepend_child(p[1])
+
+    p[0] = param_list
+
+
 def p_expression_binary_op(p):
     """
     expression : expression PLUS expression

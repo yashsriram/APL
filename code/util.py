@@ -300,8 +300,8 @@ class ASTNode:
         self.type = _type
         self.value = value
         self.parent = parent
-        self.is_constant = is_constant
         self.children = []
+        self.is_constant = is_constant
 
     def add_child(self, child):
         self.children.append(child)
