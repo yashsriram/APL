@@ -299,15 +299,17 @@ class ASTNode:
     def __init__(self, _type, value, is_constant=False, parent=None):
         self.type = _type
         self.value = value
-        self.parent = parent
         self.children = []
+        self.parent = parent
         self.is_constant = is_constant
 
-    def add_child(self, child):
+    def append_child(self, child):
         self.children.append(child)
+        child.parent = self
 
     def prepend_child(self, child):
         self.children = [child] + self.children
+        child.parent = self
 
     def is_term(self):
         """

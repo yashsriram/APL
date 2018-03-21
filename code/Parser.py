@@ -214,12 +214,10 @@ def p_body(p):
         body = ASTNode('BODY', 'body')
     elif len(p) == 3:
         body = p[2]
-        p[1].parent = body
         body.prepend_child(p[1])
     elif len(p) == 4:
         body = p[3]
         if p[1] is not None:
-            p[1].parent = body
             body.prepend_child(p[1])
 
     p[0] = body
@@ -237,24 +235,19 @@ def p_compound_condition(p):
     if len(p) == 4:
         if p[2] == '&&':
             node = ASTNode('AND', '&&', p[1].is_constant and p[3].is_constant)
-            p[1].parent = node
-            node.add_child(p[1])
-            p[3].parent = node
-            node.add_child(p[3])
+            node.append_child(p[1])
+            node.append_child(p[3])
             p[0] = node
         elif p[2] == '||':
             node = ASTNode('OR', '||', p[1].is_constant and p[3].is_constant)
-            p[1].parent = node
-            node.add_child(p[1])
-            p[3].parent = node
-            node.add_child(p[3])
+            node.append_child(p[1])
+            node.append_child(p[3])
             p[0] = node
         elif p[1] == '(' and p[3] == ')':
             p[0] = p[2]
     elif len(p) == 3:
         node = ASTNode('NOT', '!', p[2].is_constant)
-        p[2].parent = node
-        node.add_child(p[2])
+        node.append_child(p[2])
         p[0] = node
     elif len(p) == 2:
         p[0] = p[1]
@@ -271,45 +264,33 @@ def p_condition(p):
     """
     if p[2] == '==':
         node = ASTNode('EQ', '==', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '!=':
         node = ASTNode('NE', '!=', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '>=':
         node = ASTNode('GE', '>=', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '>':
         node = ASTNode('GT', '>', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '<=':
         node = ASTNode('LE', '<=', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '<':
         node = ASTNode('LT', '<', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
 
 
@@ -319,10 +300,8 @@ def p_while_block(p):
     while_block : WHILE L_PAREN compound_condition R_PAREN if_else_while_common_body
     """
     while_block = ASTNode('WHILE', 'while')
-    p[3].parent = while_block
-    while_block.add_child(p[3])
-    p[5].parent = while_block
-    while_block.add_child(p[5])
+    while_block.append_child(p[3])
+    while_block.append_child(p[5])
     p[0] = while_block
 
 
@@ -334,13 +313,10 @@ def p_if_block(p):
                 | IF L_PAREN compound_condition R_PAREN if_else_while_common_body ELSE if_else_while_common_body
     """
     if_block = ASTNode('IF', 'if')
-    p[3].parent = if_block
-    if_block.add_child(p[3])
-    p[5].parent = if_block
-    if_block.add_child(p[5])
+    if_block.append_child(p[3])
+    if_block.append_child(p[5])
     if len(p) == 8:
-        p[7].parent = if_block
-        if_block.add_child(p[7])
+        if_block.append_child(p[7])
     p[0] = if_block
 
 
@@ -355,8 +331,7 @@ def p_if_else_while_common_body(p):
         p[0] = ASTNode('BODY', 'body')
     elif len(p) == 3:
         body = ASTNode('BODY', 'body')
-        p[1].parent = body
-        body.add_child(p[1])
+        body.append_child(p[1])
         p[0] = body
     elif len(p) == 4:
         p[0] = p[2]
@@ -411,20 +386,15 @@ def p_assignment(p):
             raise SyntaxError
         id_node = ASTNode('VAR', p[1])
         node = ASTNode('ASGN', '=')
-        id_node.parent = node
-        node.add_child(id_node)
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(id_node)
+        node.append_child(p[3])
         p[0] = node
     elif len(p) == 5:
         asterisk_node = ASTNode('DEREF', '*%s' % p[2].value)
-        p[2].parent = asterisk_node
-        asterisk_node.add_child(p[2])
+        asterisk_node.append_child(p[2])
         node = ASTNode('ASGN', '=')
-        asterisk_node.parent = node
-        node.add_child(asterisk_node)
-        p[4].parent = node
-        node.add_child(p[4])
+        node.append_child(asterisk_node)
+        node.append_child(p[4])
         p[0] = node
 
 
@@ -435,11 +405,9 @@ def p_expression_function_call(p):
     """
     function_call = ASTNode('FUNCTION', 'function')
     id_node = ASTNode('VAR', p[1])
-    id_node.parent = function_call
-    function_call.add_child(id_node)
+    function_call.append_child(id_node)
     arg_list = p[3]
-    arg_list.parent = function_call
-    function_call.add_child(arg_list)
+    function_call.append_child(arg_list)
     p[0] = function_call
 
 
@@ -461,11 +429,9 @@ def p_arg_list_non_empty(p):
     """
     if len(p) == 2:
         param_list = ASTNode('PARAM_LIST', 'param_list')
-        p[1].parent = param_list
-        param_list.add_child(p[1])
+        param_list.append_child(p[1])
     elif len(p) == 4:
         param_list = p[3]
-        p[1].parent = param_list
         param_list.prepend_child(p[1])
 
     p[0] = param_list
@@ -480,39 +446,30 @@ def p_expression_binary_op(p):
     """
     if p[2] == '+':
         node = ASTNode('PLUS', '+', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '-':
         node = ASTNode('MINUS', '-', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '*':
         node = ASTNode('MUL', '*', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
     elif p[2] == '/':
         node = ASTNode('DIV', '/', p[1].is_constant and p[3].is_constant)
-        p[1].parent = node
-        node.add_child(p[1])
-        p[3].parent = node
-        node.add_child(p[3])
+        node.append_child(p[1])
+        node.append_child(p[3])
         p[0] = node
 
 
 def p_expression_uminus(p):
     """expression : MINUS expression %prec U_MINUS"""
     node = ASTNode('UMINUS', '-', p[2].is_constant)
-    p[2].parent = node
-    node.add_child(p[2])
+    node.append_child(p[2])
     p[0] = node
 
 
@@ -549,13 +506,11 @@ def p_term(p):
     elif len(p) == 3:
         if p[1] == '*':
             node = ASTNode('DEREF', '*%s' % p[2].value)
-            p[2].parent = node
-            node.add_child(p[2])
+            node.append_child(p[2])
             p[0] = node
         elif p[1] == '&':
             node = ASTNode('ADDR', '&%s' % p[2].value)
-            p[2].parent = node
-            node.add_child(p[2])
+            node.append_child(p[2])
             p[0] = node
 
 
