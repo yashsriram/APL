@@ -9,7 +9,7 @@ from utils.symbolutils import *
 
 input_file_name = ''
 no_assignments = 0
-global_symbol_table = SymbolTable()
+global_symbol_table = SymbolTable('global')
 
 ########################################################################################
 
@@ -226,7 +226,7 @@ def p_void_id(p):
             | MAIN
     """
     global symbol_table_stack
-    symbol_table_stack.append(SymbolTable())
+    symbol_table_stack.append(SymbolTable(p[1]))
     p[0] = p[1], 0
 
 
@@ -235,7 +235,7 @@ def p_return_term(p):
     return_term : function_term
     """
     global symbol_table_stack
-    symbol_table_stack.append(SymbolTable())
+    symbol_table_stack.append(SymbolTable(p[1][0]))
     p[0] = p[1]
 
 
@@ -353,35 +353,37 @@ def p_condition(p):
                 | expression LE expression
                 | expression LT expression
     """
+    left_child_node, left_type, left_deref_depth = p[1]
+    right_child_node, right_type, right_deref_depth = p[3]
     if p[2] == '==':
-        node = ASTNode('EQ', '==', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
+        node = ASTNode('EQ', '==', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
         p[0] = node
     elif p[2] == '!=':
-        node = ASTNode('NE', '!=', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
+        node = ASTNode('NE', '!=', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
         p[0] = node
     elif p[2] == '>=':
-        node = ASTNode('GE', '>=', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
+        node = ASTNode('GE', '>=', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
         p[0] = node
     elif p[2] == '>':
-        node = ASTNode('GT', '>', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
+        node = ASTNode('GT', '>', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
         p[0] = node
     elif p[2] == '<=':
-        node = ASTNode('LE', '<=', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
+        node = ASTNode('LE', '<=', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
         p[0] = node
     elif p[2] == '<':
-        node = ASTNode('LT', '<', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
+        node = ASTNode('LT', '<', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
         p[0] = node
 
 
@@ -491,7 +493,7 @@ def p_return_statement(p):
     """
     if len(p) == 3:
         node = ASTNode('RETURN', 'return')
-        node.append_child(p[2])
+        node.append_child(p[2][0])
         p[0] = node
     elif len(p) == 2:
         node = ASTNode('RETURN', 'return')
@@ -506,21 +508,44 @@ def p_assignment(p):
     """
     global no_assignments
     no_assignments += 1
+    global global_symbol_table,symbol_table_stack
     if len(p) == 4:
-        if p[3].is_constant:
+        expression_node, expression_type, expression_deref_depth = p[3]
+        if expression_node.is_constant:
             print("Error id = constant")
             exit(-1)
-        id_node = ASTNode('VAR', p[1])
+        _id = p[1]
+        symbol = None
+        try:
+            symbol = get_non_func_symbol_from_stack(_id,global_symbol_table,symbol_table_stack)
+        except KeyError:
+            print("Symbol not found")
+            exit(-1)
+        if symbol.deref_depth == 0:
+            print("Scalar variable found in lhs")
+            exit(-1)
+        if symbol.type != expression_type or symbol.deref_depth != expression_deref_depth:
+            print("Type mismatch")
+            exit(-1)
+        id_node = ASTNode('VAR', _id)
         node = ASTNode('ASGN', '=')
         node.append_child(id_node)
-        node.append_child(p[3])
+        node.append_child(expression_node)
         p[0] = node
     elif len(p) == 5:
-        asterisk_node = ASTNode('DEREF', '*%s' % p[2].value)
-        asterisk_node.append_child(p[2])
+        term_node, term_type, term_deref_depth = p[2]
+        expression_node, expression_type, expression_deref_depth = p[4]
+        if term_deref_depth == 0:
+            print("Too much dereferrencing")
+            exit(-1)
+        if term_type != expression_type or term_deref_depth - 1 != expression_deref_depth:
+            print("Type Mismatch")
+            exit(-1)
+        asterisk_node = ASTNode('DEREF', '*%s' % term_node.value)
+        asterisk_node.append_child(term_node)
         node = ASTNode('ASGN', '=')
         node.append_child(asterisk_node)
-        node.append_child(p[4])
+        node.append_child(expression_node)
         p[0] = node
 
 
@@ -538,16 +563,34 @@ def p_expression_function_expression(p):
             | ASTERISK func_expr
     """
     if len(p) == 5:
-        function_call = ASTNode('FUNCTION', 'function')
+        _id = p[1]
+        child_node, arg_list = p[3]
+        if global_symbol_table.symbol_exists(_id):
+            symbol = global_symbol_table.get_symbol(_id)
+            if symbol.is_function():
+                param_list = symbol.its_table.get_ordered_param_symbols()
+                if param_list != arg_list:
+                    print("arguments mismatch")
+                    exit(-1)
+            else:
+                print("Not a valid function")
+                exit(-1)
+        else:
+            print("Not a valid function")
+            exit(-1)
+        node = ASTNode('FUNCTION', 'function')
         id_node = ASTNode('VAR', p[1])
-        function_call.append_child(id_node)
-        arg_list = p[3]
-        function_call.append_child(arg_list)
-        p[0] = function_call
-    else:
+        node.append_child(id_node)
+        node.append_child(child_node)
+        p[0] = node, symbol.type, symbol.deref_depth
+    elif len(p) == 3:
+        child_node, _type, deref_depth = p[2]
+        if deref_depth == 0:
+            print("Too much redirection")
+            exit(-1)
         node = ASTNode('DEREF_FN', '*')
-        node.append_child(p[2])
-        p[0] = node
+        node.append_child(child_node)
+        p[0] = node, _type, deref_depth -1
 
 
 def p_arg_list(p):
@@ -556,24 +599,32 @@ def p_arg_list(p):
             |
     """
     if len(p) == 1:
-        p[0] = ASTNode('PARAM_LIST', 'param_list')
+        node = ASTNode('PARAM_LIST', 'param_list')
+        p[0] = node,[]
     elif len(p) == 2:
         p[0] = p[1]
 
 
 def p_arg_list_non_empty(p):
     """
-    arg_list_non_empty : expression COMMA arg_list_non_empty
+    arg_list_non_empty : arg_list_non_empty COMMA expression
                     | expression
     """
     if len(p) == 2:
-        param_list = ASTNode('PARAM_LIST', 'param_list')
-        param_list.append_child(p[1])
-    elif len(p) == 4:
-        param_list = p[3]
-        param_list.prepend_child(p[1])
+        child_ast_node, _type, deref_depth = p[1]
+        node = ASTNode('PARAM_LIST', 'param_list')
+        node.append_child(child_ast_node)
+        arg_list = [(_type, deref_depth, 0)]
+        p[0] = node, arg_list
 
-    p[0] = param_list
+    elif len(p) == 4:
+        node , arg_list = p[1]
+        child_ast_node, _type, deref_depth = p[3]
+        node.append_child(child_ast_node)
+        current_arg = [(_type, deref_depth, len(arg_list))]
+        arg_list = arg_list + current_arg
+        p[0] = node, arg_list
+
 
 
 def p_expression_binary_op(p):
@@ -583,33 +634,39 @@ def p_expression_binary_op(p):
               | expression ASTERISK expression
               | expression DIVIDE expression
     """
+    left_child_node, left_type, left_deref_depth = p[1]
+    right_child_node, right_type, right_deref_depth = p[3]
+    if left_type != right_type or left_deref_depth != right_deref_depth:
+        print("Type Mismatch")
+        exit(-1)
     if p[2] == '+':
-        node = ASTNode('PLUS', '+', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
-        p[0] = node
+        node = ASTNode('PLUS', '+', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '-':
-        node = ASTNode('MINUS', '-', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
-        p[0] = node
+        node = ASTNode('MINUS', '-', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '*':
-        node = ASTNode('MUL', '*', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
-        p[0] = node
+        node = ASTNode('MUL', '*', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '/':
-        node = ASTNode('DIV', '/', p[1].is_constant and p[3].is_constant)
-        node.append_child(p[1])
-        node.append_child(p[3])
-        p[0] = node
+        node = ASTNode('DIV', '/', left_child_node.is_constant and right_child_node.is_constant)
+        node.append_child(left_child_node)
+        node.append_child(right_child_node)
+        p[0] = node, left_type, left_deref_depth
 
 
 def p_expression_uminus(p):
     """expression : MINUS expression %prec U_MINUS"""
-    node = ASTNode('UMINUS', '-', p[2].is_constant)
-    node.append_child(p[2])
-    p[0] = node
+    child_ast_node, _type, deref_depth = p[2]
+    node = ASTNode('UMINUS', '-', child_ast_node.is_constant)
+    node.append_child(child_ast_node)
+    p[0] = node, _type, deref_depth
 
 
 def p_expression_group(p):
@@ -619,12 +676,12 @@ def p_expression_group(p):
 
 def p_expression_int_lit(p):
     """expression : INT_LIT"""
-    p[0] = ASTNode('CONST', p[1], True)
+    p[0] = ASTNode('CONST', p[1], True), 'int', 0
 
 
 def p_expression_float_lit(p):
     """expression : FLOAT_LIT"""
-    p[0] = ASTNode('CONST', p[1], True)
+    p[0] = ASTNode('CONST', p[1], True), 'float', 0
 
 
 def p_expression_term(p):
@@ -641,16 +698,27 @@ def p_term(p):
 
     """
     if len(p) == 2:
-        p[0] = ASTNode('VAR', p[1])
+        _id = p[1]
+        try:
+            global global_symbol_table,symbol_table_stack
+            sym = get_non_func_symbol_from_stack(_id,global_symbol_table,symbol_table_stack)
+            p[0] = ASTNode('VAR', _id), sym.type, sym.deref_depth
+        except KeyError:
+            print("Symbol not found")
+            exit(-1)
     elif len(p) == 3:
+        child_ast_node, _type, deref_depth = p[2]
         if p[1] == '*':
-            node = ASTNode('DEREF', '*%s' % p[2].value)
-            node.append_child(p[2])
-            p[0] = node
+            if deref_depth == 0:
+                print("Too much dereferrencing")
+                exit(-1)
+            node = ASTNode('DEREF', '*%s' % child_ast_node.value)
+            node.append_child(child_ast_node)
+            p[0] = node, _type, deref_depth - 1
         elif p[1] == '&':
-            node = ASTNode('ADDR', '&%s' % p[2].value)
-            node.append_child(p[2])
-            p[0] = node
+            node = ASTNode('ADDR', '&%s' % child_ast_node.value)
+            node.append_child(child_ast_node)
+            p[0] = node, _type, deref_depth + 1
 
 
 # -------------------------------- ERROR --------------------------------
