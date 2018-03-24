@@ -19,6 +19,7 @@ reserved_keywords = {
     'if': 'IF',
     'float': 'FLOAT',
     'else': 'ELSE',
+    'return': 'RETURN',
 }
 
 tokens = [
@@ -342,6 +343,7 @@ def p_if_else_while_common_body(p):
 def p_statement(p):
     """
     statement : type dlist
+                | return_statement
                 | assignment
     """
     if len(p) == 2:
@@ -373,6 +375,22 @@ def p_declaration(p):
     pass
 
 
+# -------------------------------- RETURN STATEMENT ----------------------------
+def p_return_statement(p):
+    """
+    return_statement : RETURN expression
+                | RETURN
+    """
+    if len(p) == 3:
+        node = ASTNode('RETURN', 'return')
+        node.append_child(p[2])
+        p[0] = node
+    elif len(p) == 2:
+        node = ASTNode('RETURN', 'return')
+        p[0] = node
+
+
+
 # -------------------------------- ASSIGNMENT --------------------------------
 def p_assignment(p):
     """
@@ -402,14 +420,26 @@ def p_assignment(p):
 # -------------------------------- EXPRESSION --------------------------------
 def p_expression_function_call(p):
     """
-    expression : ID L_PAREN arg_list R_PAREN
+    expression : func_expr
     """
-    function_call = ASTNode('FUNCTION', 'function')
-    id_node = ASTNode('VAR', p[1])
-    function_call.append_child(id_node)
-    arg_list = p[3]
-    function_call.append_child(arg_list)
-    p[0] = function_call
+    p[0] = p[1]
+
+def p_expression_function_expression(p):
+    """
+    func_expr : ID L_PAREN arg_list R_PAREN
+            | ASTERISK func_expr
+    """
+    if len(p) == 5:
+        function_call = ASTNode('FUNCTION', 'function')
+        id_node = ASTNode('VAR', p[1])
+        function_call.append_child(id_node)
+        arg_list = p[3]
+        function_call.append_child(arg_list)
+        p[0] = function_call
+    else:
+        node = ASTNode('DEREF_FN', '*')
+        node.append_child(p[2])
+        p[0] = node
 
 
 def p_arg_list(p):
@@ -425,8 +455,8 @@ def p_arg_list(p):
 
 def p_arg_list_non_empty(p):
     """
-    arg_list_non_empty : term COMMA arg_list_non_empty
-                    | term
+    arg_list_non_empty : expression COMMA arg_list_non_empty
+                    | expression
     """
     if len(p) == 2:
         param_list = ASTNode('PARAM_LIST', 'param_list')
