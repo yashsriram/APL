@@ -3,11 +3,17 @@ import ply.lex as lex
 import ply.yacc as yacc
 from astutils import ASTNode
 from cfgutils import generate_CFG
+from symbolutils import *
 
 ########################################################################################
 
 input_file_name = ''
 no_assignments = 0
+set_current_symbol_table_key("global")
+symbol_table_list = {}
+globalTable = SymbolTable()
+symbol_table_list['global'] = globalTable
+
 
 ########################################################################################
 
@@ -144,6 +150,13 @@ def p_global_dlist(p):
     """
     global_dlist : type dlist SEMICOLON
     """
+    id_list = p[2]
+    for data in id_list:
+        symbol_table_row = SymbolTableRow(data[0],p[1],'global',data[1],4,0,None)
+        try:
+            symbol_table_list['global'].add_row(symbol_table_row)
+        except KeyError:
+            raise SyntaxError
     pass
 
 
@@ -155,6 +168,8 @@ def p_function(p):
             | VOID void_id L_PAREN param_list R_PAREN L_CURLY body R_CURLY
             | VOID void_id L_PAREN param_list R_PAREN SEMICOLON
     """
+    global current_symbol_table_key
+    current_symbol_table_key = 'global'
     pass
 
 
@@ -163,6 +178,10 @@ def p_void_id(p):
     void_id : ID
             | MAIN
     """
+    global current_symbol_table_key
+    current_symbol_table_key = p[1]
+    symbol_table_list[current_symbol_table_key] = SymbolTable()
+    p[0] = [p[1],0]
     pass
 
 
@@ -170,6 +189,10 @@ def p_return_term(p):
     """
     return_term : function_term
     """
+    global current_symbol_table_key
+    current_symbol_table_key = p[1][0]
+    symbol_table_list[current_symbol_table_key] = SymbolTable()
+    p[0] = p[1]
     pass
 
 
@@ -193,6 +216,7 @@ def p_function_term(p):
     """
     function_term : ASTERISK function_term_r
     """
+    p[0] = [p[2][0],p[2][1]+1]
     pass
 
 
@@ -201,6 +225,10 @@ def p_function_term_r(p):
     function_term_r : ASTERISK function_term_r
                         | ID
     """
+    if(len(p) == 2):
+        p[0] = [p[1],0]
+    else:
+        p[0] = [p[2][0],p[2][1]+1]
     pass
 
 
@@ -348,6 +376,15 @@ def p_statement(p):
     """
     if len(p) == 2:
         p[0] = p[1]
+    elif len(p) == 3:
+        id_list = p[2]
+        for data in id_list:
+            symbol_table_row = SymbolTableRow(data[0],p[1],'local',data[1],4,0,None)
+            try:
+                symbol_table_list[current_symbol_table_key].add_row(symbol_table_row)
+            except KeyError:
+                print("Syntax Error")
+                raise SyntaxError
 
 
 # -------------------------------- DECLARATION --------------------------------
@@ -356,6 +393,7 @@ def p_type(p):
     type : INT
         | FLOAT
     """
+    p[0] = p[1]
     pass
 
 
@@ -364,6 +402,10 @@ def p_dlist(p):
     dlist : declaration COMMA dlist
             | declaration
     """
+    if len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = [p[1]] + p[3]
     pass
 
 
@@ -372,6 +414,10 @@ def p_declaration(p):
     declaration : ID
                 | ASTERISK declaration %prec DE_REF
     """
+    if(len(p) == 2):
+        p[0] = [p[1],0]
+    else:
+        p[0] = [p[2][0],p[2][1]+1]
     pass
 
 
@@ -571,3 +617,7 @@ if __name__ == "__main__":
     # print(source_code)
     process(source_code)
     source_code_file.close()
+    # for key,val in symbol_table_list.items():
+    #   print("func  "+key)
+    #   for key2, val2 in symbol_table_list[key].rows.items():
+    #       print(val2)
