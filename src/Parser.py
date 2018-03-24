@@ -1,19 +1,15 @@
 import sys
 import ply.lex as lex
 import ply.yacc as yacc
-from astutils import ASTNode
-from cfgutils import generate_CFG
-from symbolutils import *
+from utils.astutils import ASTNode
+from utils.cfgutils import generate_CFG
+from utils.symbolutils import *
 
 ########################################################################################
 
 input_file_name = ''
 no_assignments = 0
-set_current_symbol_table_key("global")
-symbol_table_list = {}
-globalTable = SymbolTable()
-symbol_table_list['global'] = globalTable
-
+global_symbol_table = SymbolTable()
 
 ########################################################################################
 
@@ -150,27 +146,78 @@ def p_global_dlist(p):
     """
     global_dlist : type dlist SEMICOLON
     """
-    id_list = p[2]
-    for data in id_list:
-        symbol_table_row = SymbolTableRow(data[0],p[1],'global',data[1],4,0,None)
-        try:
-            symbol_table_list['global'].add_row(symbol_table_row)
-        except KeyError:
-            raise SyntaxError
-    pass
+    global global_symbol_table
+    _type = p[1]
+    term_list = p[2]
+    for term in term_list:
+        _id, deref_depth = term
+        if not global_symbol_table.symbol_exists(_id):
+            symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 4)
+            global_symbol_table.add_symbol(symbol)
+        else:
+            print("global declaration mismatch")
+            exit(-1)
 
 
 # -------------------------------- FUNCTION --------------------------------
 def p_function(p):
     """
     function : type return_term L_PAREN param_list R_PAREN L_CURLY body R_CURLY
-            | type return_term L_PAREN param_list R_PAREN SEMICOLON
             | VOID void_id L_PAREN param_list R_PAREN L_CURLY body R_CURLY
+            | type return_term L_PAREN param_list R_PAREN SEMICOLON
             | VOID void_id L_PAREN param_list R_PAREN SEMICOLON
     """
-    global current_symbol_table_key
-    current_symbol_table_key = 'global'
-    pass
+    global symbol_table_stack
+    global global_symbol_table
+    current_symbol_table = symbol_table_stack[-1]
+    _type = p[1]
+    _id, deref_depth = p[2]
+    if len(p) == 7:
+        # Prototype
+        if not global_symbol_table.symbol_exists(_id):
+            symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
+                            is_prototype=True)
+            global_symbol_table.add_symbol(symbol)
+            symbol_table_stack.pop()
+        else:
+            print("global declaration mismatch2")
+            exit(-1)
+    elif len(p) == 9:
+        if not global_symbol_table.symbol_exists(_id):
+            # New function implementation
+            symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
+                            is_prototype=False)
+            global_symbol_table.add_symbol(symbol)
+            symbol_table_stack.pop()
+        else:
+            existing_symbol = global_symbol_table.get_symbol(_id)
+            if not existing_symbol.is_function():
+                # Existing symbol is not a function
+                print("global declaration mismatch3")
+                exit(-1)
+            else:
+                if existing_symbol.is_prototype:
+                    if existing_symbol.type == _type and existing_symbol.deref_depth == deref_depth:
+                        param_symbols1 = current_symbol_table.get_ordered_param_symbols()
+                        param_symbols2 = existing_symbol.its_table.get_ordered_param_symbols()
+                        if param_symbols1 == param_symbols2:
+                            symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0,
+                                            its_table=current_symbol_table,
+                                            is_prototype=False)
+                            global_symbol_table.add_symbol(symbol)
+                            symbol_table_stack.pop()
+                        else:
+                            # Params mismatch
+                            print("Params mismatch")
+                            exit(-1)
+                    else:
+                        # Return type mismatch
+                        print("Return type mismatch")
+                        exit(-1)
+                else:
+                    # Already implemented function
+                    print("Already implemented function")
+                    exit(-1)
 
 
 def p_void_id(p):
@@ -178,22 +225,18 @@ def p_void_id(p):
     void_id : ID
             | MAIN
     """
-    global current_symbol_table_key
-    current_symbol_table_key = p[1]
-    symbol_table_list[current_symbol_table_key] = SymbolTable()
-    p[0] = [p[1],0]
-    pass
+    global symbol_table_stack
+    symbol_table_stack.append(SymbolTable())
+    p[0] = p[1], 0
 
 
 def p_return_term(p):
     """
     return_term : function_term
     """
-    global current_symbol_table_key
-    current_symbol_table_key = p[1][0]
-    symbol_table_list[current_symbol_table_key] = SymbolTable()
+    global symbol_table_stack
+    symbol_table_stack.append(SymbolTable())
     p[0] = p[1]
-    pass
 
 
 def p_param_list(p):
@@ -201,7 +244,20 @@ def p_param_list(p):
     param_list : param_list_non_empty
                 |
     """
-    pass
+    global symbol_table_stack
+    if len(p) == 2:
+        param_list = p[1]
+        current_symbol_table = symbol_table_stack[-1]
+        param_index = 0
+        for param in param_list:
+            _id, _type, deref_depth = param
+            if not current_symbol_table.symbol_exists(_id):
+                symbol_table_row = Symbol(_id, _type, Symbol.PARAM_SCOPE, deref_depth, 4, param_index=param_index)
+                param_index += 1
+                current_symbol_table.add_symbol(symbol_table_row)
+            else:
+                print("param declaration mismatch")
+                exit(-1)
 
 
 def p_param_list_non_empty(p):
@@ -209,15 +265,20 @@ def p_param_list_non_empty(p):
     param_list_non_empty : type function_term COMMA param_list_non_empty
             | type function_term
     """
-    pass
+    _type = p[1]
+    term = p[2]
+    _id, deref_depth = term
+    if len(p) == 3:
+        p[0] = [(_id, _type, deref_depth)]
+    elif len(p) == 5:
+        p[0] = [(_id, _type, deref_depth)] + p[4]
 
 
 def p_function_term(p):
     """
     function_term : ASTERISK function_term_r
     """
-    p[0] = [p[2][0],p[2][1]+1]
-    pass
+    p[0] = p[2][0], p[2][1] + 1
 
 
 def p_function_term_r(p):
@@ -225,10 +286,10 @@ def p_function_term_r(p):
     function_term_r : ASTERISK function_term_r
                         | ID
     """
-    if(len(p) == 2):
-        p[0] = [p[1],0]
+    if len(p) == 2:
+        p[0] = p[1], 0
     else:
-        p[0] = [p[2][0],p[2][1]+1]
+        p[0] = p[2][0], p[2][1] + 1
     pass
 
 
@@ -374,17 +435,21 @@ def p_statement(p):
                 | return_statement
                 | assignment
     """
+    global symbol_table_stack
     if len(p) == 2:
         p[0] = p[1]
     elif len(p) == 3:
-        id_list = p[2]
-        for data in id_list:
-            symbol_table_row = SymbolTableRow(data[0],p[1],'local',data[1],4,0,None)
-            try:
-                symbol_table_list[current_symbol_table_key].add_row(symbol_table_row)
-            except KeyError:
-                print("Syntax Error")
-                raise SyntaxError
+        dlist = p[2]
+        current_symbol_table = symbol_table_stack[-1]
+        _type = p[1]
+        for term in dlist:
+            _id, deref_depth = term
+            if not current_symbol_table.symbol_exists(_id):
+                symbol_table_row = Symbol(_id, _type, Symbol.LOCAL_SCOPE, deref_depth, 4)
+                current_symbol_table.add_symbol(symbol_table_row)
+            else:
+                print("local declaration mismatch")
+                exit(-1)
 
 
 # -------------------------------- DECLARATION --------------------------------
@@ -394,7 +459,6 @@ def p_type(p):
         | FLOAT
     """
     p[0] = p[1]
-    pass
 
 
 def p_dlist(p):
@@ -404,9 +468,8 @@ def p_dlist(p):
     """
     if len(p) == 2:
         p[0] = [p[1]]
-    else:
+    elif len(p) == 4:
         p[0] = [p[1]] + p[3]
-    pass
 
 
 def p_declaration(p):
@@ -414,11 +477,10 @@ def p_declaration(p):
     declaration : ID
                 | ASTERISK declaration %prec DE_REF
     """
-    if(len(p) == 2):
-        p[0] = [p[1],0]
-    else:
-        p[0] = [p[2][0],p[2][1]+1]
-    pass
+    if len(p) == 2:
+        p[0] = p[1], 0
+    elif len(p) == 3:
+        p[0] = p[2][0], p[2][1] + 1
 
 
 # -------------------------------- RETURN STATEMENT ----------------------------
@@ -436,7 +498,6 @@ def p_return_statement(p):
         p[0] = node
 
 
-
 # -------------------------------- ASSIGNMENT --------------------------------
 def p_assignment(p):
     """
@@ -448,7 +509,7 @@ def p_assignment(p):
     if len(p) == 4:
         if p[3].is_constant:
             print("Error id = constant")
-            raise SyntaxError
+            exit(-1)
         id_node = ASTNode('VAR', p[1])
         node = ASTNode('ASGN', '=')
         node.append_child(id_node)
@@ -469,6 +530,7 @@ def p_expression_function_call(p):
     expression : func_expr
     """
     p[0] = p[1]
+
 
 def p_expression_function_expression(p):
     """
@@ -617,7 +679,3 @@ if __name__ == "__main__":
     # print(source_code)
     process(source_code)
     source_code_file.close()
-    # for key,val in symbol_table_list.items():
-    #   print("func  "+key)
-    #   for key2, val2 in symbol_table_list[key].rows.items():
-    #       print(val2)
