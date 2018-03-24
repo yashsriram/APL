@@ -636,7 +636,7 @@ def p_expression_term(p):
 def p_term(p):
     """
     term : ASTERISK term %prec DE_REF
-        | AMPERSAND term %prec ADDR_OF
+        | AMPERSAND ID %prec ADDR_OF
         | ID
 
     """

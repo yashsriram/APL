@@ -3,6 +3,18 @@ global_symbol_table = None
 symbol_table_stack = []
 
 
+def get_non_func_symbol(_id):
+    for i in range(len(symbol_table_stack)):
+        ri = len(symbol_table_stack) - i - 1
+        sym = symbol_table_stack[ri].get_non_func_symbol(_id)
+        if sym is not False:
+            return sym
+    sym = global_symbol_table.get_non_func_symbol(_id)
+    if sym is not False:
+        return sym
+    raise KeyError("Symbol not found")
+
+
 class SymbolTable:
     def __init__(self):
         self.symbols = {}
@@ -15,6 +27,16 @@ class SymbolTable:
 
     def get_symbol(self, _id):
         return self.symbols[_id]
+
+    def get_non_func_symbol(self, _id):
+        try:
+            symbol = self.symbols[_id]
+            if not symbol.is_function():
+                return symbol
+            else:
+                return False
+        except KeyError:
+            return False
 
     def get_ordered_param_symbols(self):
         param_symbols = []
