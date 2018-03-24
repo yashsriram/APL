@@ -3,7 +3,7 @@ global_symbol_table = None
 symbol_table_stack = []
 
 
-def get_non_func_symbol(_id):
+def get_non_func_symbol_from_stack(_id):
     for i in range(len(symbol_table_stack)):
         ri = len(symbol_table_stack) - i - 1
         sym = symbol_table_stack[ri].get_non_func_symbol(_id)
