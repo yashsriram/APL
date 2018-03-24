@@ -1,7 +1,8 @@
 import sys
 import ply.lex as lex
 import ply.yacc as yacc
-from util import ASTNode, generate_CFG
+from astutils import ASTNode
+from cfgutils import generate_CFG
 
 ########################################################################################
 
