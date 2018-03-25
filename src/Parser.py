@@ -3,13 +3,14 @@ import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
 from utils.cfgutils import generate_CFG
-from utils.symbolutils import *
+from utils.symbolutils import get_non_func_symbol_from_stack, SymbolTable, Symbol
 
 ########################################################################################
 
 input_file_name = ''
 no_assignments = 0
-global_symbol_table = SymbolTable('global')
+symbol_table_stack = []
+global_symbol_table = SymbolTable()
 
 ########################################################################################
 
@@ -162,17 +163,14 @@ def p_global_dlist(p):
 # -------------------------------- FUNCTION --------------------------------
 def p_function(p):
     """
-    function : type return_term L_PAREN param_list R_PAREN L_CURLY body R_CURLY
-            | VOID void_id L_PAREN param_list R_PAREN L_CURLY body R_CURLY
-            | type return_term L_PAREN param_list R_PAREN SEMICOLON
-            | VOID void_id L_PAREN param_list R_PAREN SEMICOLON
+    function : function_head L_PAREN param_list R_PAREN L_CURLY body R_CURLY
+            | function_head L_PAREN param_list R_PAREN SEMICOLON
     """
     global symbol_table_stack
     global global_symbol_table
     current_symbol_table = symbol_table_stack[-1]
-    _type = p[1]
-    _id, deref_depth = p[2]
-    if len(p) == 7:
+    _id, _type, deref_depth = p[1]
+    if len(p) == 6:
         # Prototype
         if not global_symbol_table.symbol_exists(_id):
             symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
@@ -180,9 +178,9 @@ def p_function(p):
             global_symbol_table.add_symbol(symbol)
             symbol_table_stack.pop()
         else:
-            print("global declaration mismatch2")
+            print("Function prototype : Variable with same id exists")
             exit(-1)
-    elif len(p) == 9:
+    elif len(p) == 8:
         if not global_symbol_table.symbol_exists(_id):
             # New function implementation
             symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
@@ -193,7 +191,7 @@ def p_function(p):
             existing_symbol = global_symbol_table.get_symbol(_id)
             if not existing_symbol.is_function():
                 # Existing symbol is not a function
-                print("global declaration mismatch3")
+                print("Function implementation : Variable with same id exists")
                 exit(-1)
             else:
                 if existing_symbol.is_prototype:
@@ -208,7 +206,7 @@ def p_function(p):
                             symbol_table_stack.pop()
                         else:
                             # Params mismatch
-                            print("Params mismatch")
+                            print("Params mismatch in function implementation")
                             exit(-1)
                     else:
                         # Return type mismatch
@@ -216,8 +214,20 @@ def p_function(p):
                         exit(-1)
                 else:
                     # Already implemented function
-                    print("Already implemented function")
+                    print("Multiple function implementation")
                     exit(-1)
+
+
+def p_function_head(p):
+    """
+    function_head : type return_term
+            | VOID void_id
+    """
+    global symbol_table_stack
+    _id, deref_depth = p[2]
+    _type = p[1]
+    symbol_table_stack.append(SymbolTable(_type, deref_depth))
+    p[0] = _id, _type, deref_depth
 
 
 def p_void_id(p):
@@ -225,8 +235,6 @@ def p_void_id(p):
     void_id : ID
             | MAIN
     """
-    global symbol_table_stack
-    symbol_table_stack.append(SymbolTable(p[1]))
     p[0] = p[1], 0
 
 
@@ -234,8 +242,6 @@ def p_return_term(p):
     """
     return_term : function_term
     """
-    global symbol_table_stack
-    symbol_table_stack.append(SymbolTable(p[1][0]))
     p[0] = p[1]
 
 
@@ -256,7 +262,7 @@ def p_param_list(p):
                 param_index += 1
                 current_symbol_table.add_symbol(symbol_table_row)
             else:
-                print("param declaration mismatch")
+                print("Duplicate param declaration")
                 exit(-1)
 
 
@@ -337,11 +343,11 @@ def p_compound_condition(p):
         elif p[1] == '(' and p[3] == ')':
             p[0] = p[2]
     elif len(p) == 3:
-        node = ASTNode('NOT', '!', p[2].is_constant)
-        node.append_child(p[2])
+        node = ASTNode('NOT', '!', p[2][0].is_constant)
+        node.append_child(p[2][0])
         p[0] = node
     elif len(p) == 2:
-        p[0] = p[1]
+        p[0] = p[1][0]
 
 
 def p_condition(p):
@@ -355,36 +361,39 @@ def p_condition(p):
     """
     left_child_node, left_type, left_deref_depth = p[1]
     right_child_node, right_type, right_deref_depth = p[3]
+    if left_type != right_type or left_deref_depth != right_deref_depth:
+        print("Condition types mismatch")
+        exit(-1)
     if p[2] == '==':
         node = ASTNode('EQ', '==', left_child_node.is_constant and right_child_node.is_constant)
         node.append_child(left_child_node)
         node.append_child(right_child_node)
-        p[0] = node
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '!=':
         node = ASTNode('NE', '!=', left_child_node.is_constant and right_child_node.is_constant)
         node.append_child(left_child_node)
         node.append_child(right_child_node)
-        p[0] = node
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '>=':
         node = ASTNode('GE', '>=', left_child_node.is_constant and right_child_node.is_constant)
         node.append_child(left_child_node)
         node.append_child(right_child_node)
-        p[0] = node
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '>':
         node = ASTNode('GT', '>', left_child_node.is_constant and right_child_node.is_constant)
         node.append_child(left_child_node)
         node.append_child(right_child_node)
-        p[0] = node
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '<=':
         node = ASTNode('LE', '<=', left_child_node.is_constant and right_child_node.is_constant)
         node.append_child(left_child_node)
         node.append_child(right_child_node)
-        p[0] = node
+        p[0] = node, left_type, left_deref_depth
     elif p[2] == '<':
         node = ASTNode('LT', '<', left_child_node.is_constant and right_child_node.is_constant)
         node.append_child(left_child_node)
         node.append_child(right_child_node)
-        p[0] = node
+        p[0] = node, left_type, left_deref_depth
 
 
 # -------------------------------- WHILE BLOCK --------------------------------
@@ -491,11 +500,22 @@ def p_return_statement(p):
     return_statement : RETURN expression
                 | RETURN
     """
+    global symbol_table_stack, global_symbol_table
+    fun = symbol_table_stack[-1]
+    fun_type = fun.type
+    fun_deref_depth = fun.deref_depth
     if len(p) == 3:
+        ast_node, _type, deref_depth = p[2]
+        if fun_type != _type or fun_deref_depth != deref_depth:
+            print("Improper return type")
+            exit(-1)
         node = ASTNode('RETURN', 'return')
-        node.append_child(p[2][0])
+        node.append_child(ast_node)
         p[0] = node
     elif len(p) == 2:
+        if fun_type != 'void':
+            print("Improper return type")
+            exit(-1)
         node = ASTNode('RETURN', 'return')
         p[0] = node
 
@@ -508,23 +528,23 @@ def p_assignment(p):
     """
     global no_assignments
     no_assignments += 1
-    global global_symbol_table,symbol_table_stack
+    global global_symbol_table, symbol_table_stack
     if len(p) == 4:
         expression_node, expression_type, expression_deref_depth = p[3]
         if expression_node.is_constant:
             print("Error id = constant")
             exit(-1)
         _id = p[1]
-        symbol = None
+        lhs_symbol = None
         try:
-            symbol = get_non_func_symbol_from_stack(_id,global_symbol_table,symbol_table_stack)
+            lhs_symbol = get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack)
         except KeyError:
             print("Symbol not found")
             exit(-1)
-        if symbol.deref_depth == 0:
+        if lhs_symbol.deref_depth == 0:
             print("Scalar variable found in lhs")
             exit(-1)
-        if symbol.type != expression_type or symbol.deref_depth != expression_deref_depth:
+        if lhs_symbol.type != expression_type or lhs_symbol.deref_depth != expression_deref_depth:
             print("Type mismatch")
             exit(-1)
         id_node = ASTNode('VAR', _id)
@@ -536,7 +556,7 @@ def p_assignment(p):
         term_node, term_type, term_deref_depth = p[2]
         expression_node, expression_type, expression_deref_depth = p[4]
         if term_deref_depth == 0:
-            print("Too much dereferrencing")
+            print("Too much dereference-ing")
             exit(-1)
         if term_type != expression_type or term_deref_depth - 1 != expression_deref_depth:
             print("Type Mismatch")
@@ -564,13 +584,14 @@ def p_expression_function_expression(p):
     """
     if len(p) == 5:
         _id = p[1]
-        child_node, arg_list = p[3]
+        func_symbol = None
+        arg_list_ast_node, arg_list_semantics = p[3]
         if global_symbol_table.symbol_exists(_id):
-            symbol = global_symbol_table.get_symbol(_id)
-            if symbol.is_function():
-                param_list = symbol.its_table.get_ordered_param_symbols()
-                if param_list != arg_list:
-                    print("arguments mismatch")
+            func_symbol = global_symbol_table.get_symbol(_id)
+            if func_symbol.is_function():
+                param_list = func_symbol.its_table.get_ordered_param_symbols()
+                if param_list != arg_list_semantics:
+                    print("Arguments mismatch")
                     exit(-1)
             else:
                 print("Not a valid function")
@@ -581,16 +602,16 @@ def p_expression_function_expression(p):
         node = ASTNode('FUNCTION', 'function')
         id_node = ASTNode('VAR', p[1])
         node.append_child(id_node)
-        node.append_child(child_node)
-        p[0] = node, symbol.type, symbol.deref_depth
+        node.append_child(arg_list_ast_node)
+        p[0] = node, func_symbol.type, func_symbol.deref_depth
     elif len(p) == 3:
-        child_node, _type, deref_depth = p[2]
+        arg_list_ast_node, _type, deref_depth = p[2]
         if deref_depth == 0:
             print("Too much redirection")
             exit(-1)
         node = ASTNode('DEREF_FN', '*')
-        node.append_child(child_node)
-        p[0] = node, _type, deref_depth -1
+        node.append_child(arg_list_ast_node)
+        p[0] = node, _type, deref_depth - 1
 
 
 def p_arg_list(p):
@@ -600,7 +621,7 @@ def p_arg_list(p):
     """
     if len(p) == 1:
         node = ASTNode('PARAM_LIST', 'param_list')
-        p[0] = node,[]
+        p[0] = node, []
     elif len(p) == 2:
         p[0] = p[1]
 
@@ -610,21 +631,20 @@ def p_arg_list_non_empty(p):
     arg_list_non_empty : arg_list_non_empty COMMA expression
                     | expression
     """
+    # p[0] := ast_node, [(type, deref_depth, arg_index), ...]
     if len(p) == 2:
         child_ast_node, _type, deref_depth = p[1]
         node = ASTNode('PARAM_LIST', 'param_list')
         node.append_child(child_ast_node)
         arg_list = [(_type, deref_depth, 0)]
         p[0] = node, arg_list
-
     elif len(p) == 4:
-        node , arg_list = p[1]
+        node, arg_list = p[1]
         child_ast_node, _type, deref_depth = p[3]
         node.append_child(child_ast_node)
         current_arg = [(_type, deref_depth, len(arg_list))]
         arg_list = arg_list + current_arg
         p[0] = node, arg_list
-
 
 
 def p_expression_binary_op(p):
@@ -637,7 +657,7 @@ def p_expression_binary_op(p):
     left_child_node, left_type, left_deref_depth = p[1]
     right_child_node, right_type, right_deref_depth = p[3]
     if left_type != right_type or left_deref_depth != right_deref_depth:
-        print("Type Mismatch")
+        print("Binary op types mismatch")
         exit(-1)
     if p[2] == '+':
         node = ASTNode('PLUS', '+', left_child_node.is_constant and right_child_node.is_constant)
@@ -700,8 +720,8 @@ def p_term(p):
     if len(p) == 2:
         _id = p[1]
         try:
-            global global_symbol_table,symbol_table_stack
-            sym = get_non_func_symbol_from_stack(_id,global_symbol_table,symbol_table_stack)
+            global global_symbol_table, symbol_table_stack
+            sym = get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack)
             p[0] = ASTNode('VAR', _id), sym.type, sym.deref_depth
         except KeyError:
             print("Symbol not found")

@@ -1,9 +1,4 @@
-global_symbol_table = None
-
-symbol_table_stack = []
-
-
-def get_non_func_symbol_from_stack(_id,global_symbol_table,symbol_table_stack):
+def get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack):
     for i in range(len(symbol_table_stack)):
         ri = len(symbol_table_stack) - i - 1
         sym = symbol_table_stack[ri].get_non_func_symbol(_id)
@@ -16,8 +11,9 @@ def get_non_func_symbol_from_stack(_id,global_symbol_table,symbol_table_stack):
 
 
 class SymbolTable:
-    def __init__(self,name):
-        self.name = name
+    def __init__(self, _type=None, deref_depth=None):
+        self.type = _type
+        self.deref_depth = deref_depth
         self.symbols = {}
 
     def symbol_exists(self, _id):
@@ -76,10 +72,6 @@ class Symbol:
 
     def is_function(self):
         return self.its_table is not None
-
-    def __eq__(self, other):
-        return (self.type, self.scope, self.deref_depth, self.width, self.param_index) \
-               == (other.type, other.scope, other.deref_depth, other.width, other.param_index)
 
     def __repr__(self):
         return '%s %s %s %d %d %d' % (self.id, self.type, self.scope, self.deref_depth, self.width, self.offset)
