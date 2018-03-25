@@ -26,13 +26,45 @@ class ASTNode:
         else:
             return False
 
-    def tree_text_repr(self, tabs):
+    def tree_text_repr(self, tabs=0):
         ans = ''
         if self.type == 'VAR' or self.type == 'CONST':
             ans += '\t' * tabs + str(self.type) + '(' + str(self.value) + ')' + '\n'
         elif self.type == 'BODY':
             for i in range(len(self.children)):
                 ans += self.children[i].tree_text_repr(tabs)
+        elif self.type == 'FUNCTION_CALL':
+            id_node, arg_list_node = self.children
+            arg_strings = []
+            for arg in arg_list_node.children:
+                arg_strings.append(arg.tree_text_repr(tabs + 1))
+            ans += '\t' * tabs + 'call ' + id_node.value + '\n'
+            ans += '\t' * tabs + '(\n'
+            ans += ''.join(arg_strings)
+            ans += '\t' * tabs + ')\n'
+        elif self.type == 'RETURN':
+            pass
+        elif self.type == 'FUNCTION':
+            type_node, id_node, params_list_node, body_node = self.children
+            # FUNCTION
+            ans += '\t' * tabs + 'FUNCTION ' + self.value + '\n'
+            if len(params_list_node.children) > 0:
+                param_dict = {}
+                _type = None
+                # Add params from param_list_node to param_dict
+                for i, child in enumerate(params_list_node.children):
+                    if i % 2 == 0:
+                        # Even child represents type
+                        _type = child.value
+                    else:
+                        _id = child.value
+                        param_dict[_id] = _type
+                ans += '\t' * tabs + 'PARAMS ' + str(param_dict) + '\n'
+            # RETURNS
+            if type_node.value != 'void':
+                ans += '\t' * tabs + 'RETURNS ' + type_node.value + '\n'
+            # BODY
+            ans += '\t' * tabs + body_node.tree_text_repr(tabs + 1)
         else:
             ans += '\t' * tabs + str(self.type) + '\n'
             ans += '\t' * tabs + '(' + '\n'
