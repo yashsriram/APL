@@ -54,7 +54,20 @@ def translate_asgn_or_condn(ast_node):
 
 
 def generate_CFG(ast_node, index=None):
-    if ast_node.type == 'BODY':
+    if ast_node.type == 'FUNCTION':
+        type_node, id_node, params_list_node, body_node = ast_node.children
+        func_cfg_node = CFGNode('FUNCTION_BLOCK', id_node.value, ast_node.is_constant, index=index)
+        body_cfg_node = generate_CFG(body_node, len(func_cfg_node.children))
+        func_cfg_node.append_child(body_cfg_node)
+        # Add END_BLOCK cfg node to root
+        if index is None:
+            end_cfg_node = CFGNode('END_BLOCK', 'End',
+                                   block_number=get_next_block_pk(),
+                                   index=len(func_cfg_node.children))
+            func_cfg_node.append_child(end_cfg_node)
+
+        return func_cfg_node
+    elif ast_node.type == 'BODY':
         body_cfg_node = CFGNode('BODY_BLOCK', 'body_block', ast_node.is_constant, index=index)
         block_siblings = []
         for child in ast_node.children:
@@ -88,13 +101,6 @@ def generate_CFG(ast_node, index=None):
         # Give body block the same block number as its first child if it exists
         if len(body_cfg_node.children) > 0:
             body_cfg_node.block_number = body_cfg_node.children[0].block_number
-
-        # Add END_BLOCK cfg node to root body
-        if index is None:
-            end_cfg_node = CFGNode('END_BLOCK', 'End',
-                                   block_number=get_next_block_pk(),
-                                   index=len(body_cfg_node.children))
-            body_cfg_node.append_child(end_cfg_node)
 
         return body_cfg_node
     elif ast_node.type == 'IF':
@@ -154,7 +160,7 @@ class CFGNode:
     END_BLOCK has biggest block number
 
     ASGN_BLOCK can have only BODY_BLOCK as parent
-    BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
+    BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK OR FUNCTION_BLOCK as parent
     IF_BLOCK can have only BODY_BLOCK or IF_BLOCK as parent
     WHILE_BLOCK can have only BODY_BLOCK as parent
     CONDITION_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
@@ -164,11 +170,11 @@ class CFGNode:
     def __init__(self, _type, value, is_constant=False, parent=None, block_number=None, index=None):
         self.type = _type
         self.value = value
-        self.parent = parent
-        self.is_constant = is_constant
-        self.children = []
-        self.block_number = block_number
         self.index = index
+        self.parent = parent
+        self.children = []
+        self.is_constant = is_constant
+        self.block_number = block_number
 
     def append_child(self, child):
         self.children.append(child)
@@ -181,16 +187,19 @@ class CFGNode:
         if self.type == 'ASGN_BLOCK':
             # ASGN_BLOCK can have only BODY_BLOCK as parent
             if len(parent.children) == curr_index + 1:
+                # This child is last of its parent
                 return parent.goto_block_number()
             else:
                 return parent.children[curr_index + 1].block_number
         # BODY_BLOCK
         elif self.type == 'BODY_BLOCK':
-            # BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
+            # BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK or FUNCTION_BLOCK as parent
             if parent.type == 'IF_BLOCK':
                 return parent.goto_block_number()
             elif parent.type == 'WHILE_BLOCK':
                 return parent.children[curr_index - 1].block_number
+            elif parent.type == 'FUNCTION_BLOCK':
+                return parent.children[curr_index + 1].block_number
         # IF_BLOCK
         elif self.type == 'IF_BLOCK':
             # IF_BLOCK can have only BODY_BLOCK or IF_BLOCK as parent
@@ -257,7 +266,6 @@ class CFGNode:
                     txt += rhs_cfg + this_cfg
             goto = self.goto_block_number()
             txt += 'goto <bb %d>\n' % goto
-
         elif self.type == 'CONDITION_BLOCK':
             txt += '<bb %d>\n' % self.block_number
             temp_id, child_cfg = translate_asgn_or_condn(self.value)
@@ -265,14 +273,21 @@ class CFGNode:
             goto_true, goto_false = self.goto_block_number()
             txt += 'if(%s) goto <bb %d>\n' % (temp_id, goto_true)
             txt += 'else goto <bb %d>\n' % goto_false
-
         elif self.type == 'END_BLOCK':
             txt += '<bb %d>\nEnd' % self.block_number
+        elif self.type == 'FUNCTION_BLOCK':
+            body_cfg_node, end_cfg_node = self.children
+            txt += 'function %s()\n' % self.value
+            txt += body_cfg_node.tree_text_repr()
+            txt += end_cfg_node.tree_text_repr()
 
         return txt
 
     def tree_text_repr(self):
-        if self.type == 'ASGN_BLOCK' or self.type == 'CONDITION_BLOCK' or self.type == 'END_BLOCK':
+        if self.type == 'ASGN_BLOCK' \
+                or self.type == 'CONDITION_BLOCK' \
+                or self.type == 'END_BLOCK' \
+                or self.type == 'FUNCTION_BLOCK':
             return self.text_repr() + '\n'
         else:
             txt = ''

@@ -121,10 +121,6 @@ precedence = (
 )
 
 
-#     cfg = generate_CFG(body)
-#     with open(input_file_name + '.cfg', 'w') as the_file:
-#         the_file.write('\n' + cfg.tree_text_repr())
-
 # -------------------------------- INITIAL PRODUCTION --------------------------------
 def p_initial_production(p):
     """initial_production : code"""
@@ -132,6 +128,11 @@ def p_initial_production(p):
     with open(input_file_name + '.ast', 'w') as output_file:
         for child in code_node.children:
             output_file.write(child.tree_text_repr())
+
+    with open(input_file_name + '.cfg', 'w') as output_file:
+        for child in code_node.children:
+            cfg = generate_CFG(child)
+            output_file.write(cfg.tree_text_repr())
 
 
 # -------------------------------- CODE --------------------------------
