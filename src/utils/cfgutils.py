@@ -13,47 +13,42 @@ def get_next_temp_pk():
     global temp_pk
     prev_tpk = temp_pk
     temp_pk += 1
-    return 't%d' % prev_tpk
+    return prev_tpk
 
 
 def translate_asgn_or_condn(ast_node):
-    """
-    Note:
-        1. A term is also an expression
-        2. If the node is not a term then it is a subtree ending in term leaves
-    """
     if len(ast_node.children) == 2:
         lhs = ast_node.children[0]
         rhs = ast_node.children[1]
         if lhs.is_term() and rhs.is_term():
-            ret_temp_id = get_next_temp_pk()
+            ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, ast_node.value, rhs.value)
             return ret_temp_id, this_cfg
         elif not lhs.is_term() and rhs.is_term():
             temp_id, lhs_cfg = translate_asgn_or_condn(lhs)
-            ret_temp_id = get_next_temp_pk()
+            ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, ast_node.value, rhs.value)
             return ret_temp_id, lhs_cfg + this_cfg
         elif lhs.is_term() and not rhs.is_term():
             temp_id, rhs_cfg = translate_asgn_or_condn(rhs)
-            ret_temp_id = get_next_temp_pk()
+            ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, ast_node.value, temp_id)
             return ret_temp_id, rhs_cfg + this_cfg
         else:
             temp_id_lhs, lhs_cfg = translate_asgn_or_condn(lhs)
             temp_id_rhs, rhs_cfg = translate_asgn_or_condn(rhs)
-            ret_temp_id = get_next_temp_pk()
+            ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, ast_node.value, temp_id_rhs)
             return ret_temp_id, lhs_cfg + rhs_cfg + this_cfg
     elif len(ast_node.children) == 1:
         child_node = ast_node.children[0]
         if child_node.is_term():
-            ret_temp_id = get_next_temp_pk()
+            ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s%s\n' % (ret_temp_id, ast_node.value, child_node.value)
             return ret_temp_id, this_cfg
         else:
             temp_id, child_cfg = translate_asgn_or_condn(child_node)
-            ret_temp_id = get_next_temp_pk()
+            ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s%s\n' % (ret_temp_id, ast_node.value, temp_id)
             return ret_temp_id, child_cfg + this_cfg
 
@@ -66,33 +61,29 @@ def generate_CFG(ast_node, index=None):
             if child.type == 'ASGN':
                 block_siblings.append(child)
             else:
-                # Merge all contiguous assignment statements into one MASTNode
+                # Merge all contiguous assignment statements into one CFGNode
                 if len(block_siblings) != 0:
                     assign_cfg_node = CFGNode('ASGN_BLOCK', block_siblings,
-                                              parent=body_cfg_node,
                                               block_number=get_next_block_pk(),
                                               index=len(body_cfg_node.children))
-                    body_cfg_node.add_child(assign_cfg_node)
+                    body_cfg_node.append_child(assign_cfg_node)
                     block_siblings = []
                 if child.type == 'IF':
                     # If node
                     if_cfg_node = generate_CFG(child, len(body_cfg_node.children))
-                    if_cfg_node.parent = body_cfg_node
-                    body_cfg_node.add_child(if_cfg_node)
+                    body_cfg_node.append_child(if_cfg_node)
                 elif child.type == 'WHILE':
                     # While node
                     while_cfg_node = generate_CFG(child, len(body_cfg_node.children))
                     # Attach While node to body_cfg_node
-                    while_cfg_node.parent = body_cfg_node
-                    body_cfg_node.add_child(while_cfg_node)
+                    body_cfg_node.append_child(while_cfg_node)
 
-        # Merge all contiguous assignment statements into one MASTNode
+        # Merge all contiguous assignment statements into one CFGNode
         if len(block_siblings) != 0:
             assign_cfg_node = CFGNode('ASGN_BLOCK', block_siblings,
-                                      parent=body_cfg_node,
                                       block_number=get_next_block_pk(),
                                       index=len(body_cfg_node.children))
-            body_cfg_node.add_child(assign_cfg_node)
+            body_cfg_node.append_child(assign_cfg_node)
 
         # Give body block the same block number as its first child if it exists
         if len(body_cfg_node.children) > 0:
@@ -101,10 +92,9 @@ def generate_CFG(ast_node, index=None):
         # Add END_BLOCK cfg node to root body
         if index is None:
             end_cfg_node = CFGNode('END_BLOCK', 'End',
-                                   parent=body_cfg_node,
                                    block_number=get_next_block_pk(),
                                    index=len(body_cfg_node.children))
-            body_cfg_node.add_child(end_cfg_node)
+            body_cfg_node.append_child(end_cfg_node)
 
         return body_cfg_node
     elif ast_node.type == 'IF':
@@ -117,20 +107,17 @@ def generate_CFG(ast_node, index=None):
         # Compound condition node
         cc_cfg_node = CFGNode('CONDITION_BLOCK', if_statement.children[0],
                               block_number=block_num,
-                              parent=if_cfg_node,
                               index=len(if_cfg_node.children))
-        if_cfg_node.add_child(cc_cfg_node)
+        if_cfg_node.append_child(cc_cfg_node)
         # If body node
         if_body = if_statement.children[1]
         if_body_cfg_node = generate_CFG(if_body, len(if_cfg_node.children))
-        if_body_cfg_node.parent = if_cfg_node
-        if_cfg_node.add_child(if_body_cfg_node)
+        if_cfg_node.append_child(if_body_cfg_node)
         # Else body node
         if len(if_statement.children) == 3:
             else_body = if_statement.children[2]
             else_body_cfg_node = generate_CFG(else_body, len(if_cfg_node.children))
-            else_body_cfg_node.parent = if_cfg_node
-            if_cfg_node.add_child(else_body_cfg_node)
+            if_cfg_node.append_child(else_body_cfg_node)
         return if_cfg_node
     elif ast_node.type == 'WHILE':
         while_statement = ast_node
@@ -142,14 +129,12 @@ def generate_CFG(ast_node, index=None):
         # Compound condition node
         cc_cfg_node = CFGNode('CONDITION_BLOCK', while_statement.children[0],
                               block_number=block_num,
-                              parent=while_cfg_node,
                               index=len(while_cfg_node.children))
-        while_cfg_node.add_child(cc_cfg_node)
+        while_cfg_node.append_child(cc_cfg_node)
         # While body node
         while_body = while_statement.children[1]
         while_body_cfg_node = generate_CFG(while_body, len(while_cfg_node.children))
-        while_body_cfg_node.parent = while_cfg_node
-        while_cfg_node.add_child(while_body_cfg_node)
+        while_cfg_node.append_child(while_body_cfg_node)
         return while_cfg_node
 
 
@@ -185,8 +170,9 @@ class CFGNode:
         self.block_number = block_number
         self.index = index
 
-    def add_child(self, child):
+    def append_child(self, child):
         self.children.append(child)
+        child.parent = self
 
     def goto_block_number(self):
         curr_index = self.index

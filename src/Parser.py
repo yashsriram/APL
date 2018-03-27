@@ -121,12 +121,6 @@ precedence = (
 )
 
 
-# def p_code(p):
-#     """code : global_dlist func_list VOID MAIN L_PAREN R_PAREN L_CURLY body R_CURLY"""
-#     body = p[8]
-#     with open(input_file_name + '.ast', 'w') as the_file:
-#         the_file.write('\n' * no_assignments + body.tree_text_repr(0))
-
 #     cfg = generate_CFG(body)
 #     with open(input_file_name + '.cfg', 'w') as the_file:
 #         the_file.write('\n' + cfg.tree_text_repr())
@@ -135,8 +129,9 @@ precedence = (
 def p_initial_production(p):
     """initial_production : code"""
     code_node = p[1]
-    for child in code_node.children:
-        print(child.tree_text_repr())
+    with open(input_file_name + '.ast', 'w') as output_file:
+        for child in code_node.children:
+            output_file.write(child.tree_text_repr())
 
 
 # -------------------------------- CODE --------------------------------
