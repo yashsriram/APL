@@ -2,7 +2,7 @@ import sys
 import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
-from utils.cfgutils import generate_CFG
+from utils.cfgutils import generate_cfg
 from utils.symbolutils import get_non_func_symbol_from_stack, SymbolTable, Symbol
 
 ########################################################################################
@@ -131,7 +131,7 @@ def p_initial_production(p):
 
     with open(input_file_name + '.cfg', 'w') as output_file:
         for child in code_node.children:
-            cfg = generate_CFG(child)
+            cfg = generate_cfg(child)
             output_file.write(cfg.tree_text_repr())
 
 

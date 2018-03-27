@@ -53,11 +53,11 @@ def translate_asgn_or_condn(ast_node):
             return ret_temp_id, child_cfg + this_cfg
 
 
-def generate_CFG(ast_node, index=None):
+def generate_cfg(ast_node, index=None):
     if ast_node.type == 'FUNCTION':
         type_node, id_node, params_list_node, body_node = ast_node.children
         func_cfg_node = CFGNode('FUNCTION_BLOCK', id_node.value, ast_node.is_constant, index=index)
-        body_cfg_node = generate_CFG(body_node, len(func_cfg_node.children))
+        body_cfg_node = generate_cfg(body_node, len(func_cfg_node.children))
         func_cfg_node.append_child(body_cfg_node)
         # Add END_BLOCK cfg node to root
         if index is None:
@@ -83,11 +83,11 @@ def generate_CFG(ast_node, index=None):
                     block_siblings = []
                 if child.type == 'IF':
                     # If node
-                    if_cfg_node = generate_CFG(child, len(body_cfg_node.children))
+                    if_cfg_node = generate_cfg(child, len(body_cfg_node.children))
                     body_cfg_node.append_child(if_cfg_node)
                 elif child.type == 'WHILE':
                     # While node
-                    while_cfg_node = generate_CFG(child, len(body_cfg_node.children))
+                    while_cfg_node = generate_cfg(child, len(body_cfg_node.children))
                     # Attach While node to body_cfg_node
                     body_cfg_node.append_child(while_cfg_node)
 
@@ -117,12 +117,12 @@ def generate_CFG(ast_node, index=None):
         if_cfg_node.append_child(cc_cfg_node)
         # If body node
         if_body = if_statement.children[1]
-        if_body_cfg_node = generate_CFG(if_body, len(if_cfg_node.children))
+        if_body_cfg_node = generate_cfg(if_body, len(if_cfg_node.children))
         if_cfg_node.append_child(if_body_cfg_node)
         # Else body node
         if len(if_statement.children) == 3:
             else_body = if_statement.children[2]
-            else_body_cfg_node = generate_CFG(else_body, len(if_cfg_node.children))
+            else_body_cfg_node = generate_cfg(else_body, len(if_cfg_node.children))
             if_cfg_node.append_child(else_body_cfg_node)
         return if_cfg_node
     elif ast_node.type == 'WHILE':
@@ -139,7 +139,7 @@ def generate_CFG(ast_node, index=None):
         while_cfg_node.append_child(cc_cfg_node)
         # While body node
         while_body = while_statement.children[1]
-        while_body_cfg_node = generate_CFG(while_body, len(while_cfg_node.children))
+        while_body_cfg_node = generate_cfg(while_body, len(while_cfg_node.children))
         while_cfg_node.append_child(while_body_cfg_node)
         return while_cfg_node
 
