@@ -5,6 +5,9 @@
 // handle uminus
 // correct output file names
 // improve add_child functionality
-ensure return in int and float return functions
+// ensure return in int and float return functions
+*a = b or *a = *b
+& allowed in RHS only?
+function call without using its return value
 test
 does float lit contain f at end

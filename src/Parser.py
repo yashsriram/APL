@@ -192,7 +192,7 @@ def p_function_prototype(p):
 
 def p_function_implementation(p):
     """
-    function : function_head L_PAREN param_list R_PAREN L_CURLY body R_CURLY
+    function : function_head L_PAREN param_list R_PAREN L_CURLY body return_statement R_CURLY
     """
     global symbol_table_stack
     global global_symbol_table
@@ -485,7 +485,6 @@ def p_if_else_while_common_body(p):
 def p_statement(p):
     """
     statement : type dlist
-                | return_statement
                 | assignment
     """
     global symbol_table_stack
@@ -540,25 +539,27 @@ def p_declaration(p):
 # -------------------------------- RETURN STATEMENT ----------------------------
 def p_return_statement(p):
     """
-    return_statement : RETURN expression
-                | RETURN
+    return_statement : RETURN expression SEMICOLON
+                | RETURN SEMICOLON
+                |
     """
     global symbol_table_stack, global_symbol_table
     fun = symbol_table_stack[-1]
     fun_type = fun.type
     fun_deref_depth = fun.deref_depth
-    if len(p) == 3:
+    if len(p) == 4:
         ast_node, _type, deref_depth = p[2]
         if fun_type != _type or fun_deref_depth != deref_depth:
             panic('Improper return type in function implementation')
         node = ASTNode('RETURN', 'return')
         node.append_child(ast_node)
         p[0] = node
-    elif len(p) == 2:
+    elif len(p) == 3 or len(p) == 1:
         if fun_type != 'void':
             panic('Improper return type in function implementation')
         node = ASTNode('RETURN', 'return')
         p[0] = node
+
 
 
 # -------------------------------- ASSIGNMENT --------------------------------
