@@ -510,6 +510,12 @@ def p_statement(p):
             else:
                 panic('Symbol already declared %s' % _id)
 
+def p_statement_func_expr(p):
+    """
+    statement : func_expr
+    """
+    p[0] = p[1][0]
+
 
 # -------------------------------- DECLARATION --------------------------------
 def p_type(p):
