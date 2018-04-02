@@ -38,33 +38,45 @@ class ASTNode:
             arg_strings = []
             for arg in arg_list_node.children:
                 arg_strings.append(arg.tree_text_repr(tabs + 1))
-            ans += '\t' * tabs + 'call ' + id_node.value + '\n'
-            ans += '\t' * tabs + '(\n'
-            ans += ''.join(arg_strings)
+            ans += '\t' * tabs + 'CALL ' + id_node.value + '(' + '\n'
+            for i in range(len(arg_strings)):
+                ans += arg_strings[i]
+                # Don't print last ,
+                if i != len(arg_strings) - 1:
+                    ans += '\t' * (tabs + 1) + ',' + '\n'
             ans += '\t' * tabs + ')\n'
         elif self.type == 'RETURN':
-            pass
+            return_term = self.children
+            ans += '\t' * tabs + 'RETURN' + '\n'
+            ans += '\t' * tabs + '(' + '\n'
+            if len(return_term) == 1:
+                ans += '\t' * tabs + return_term[0].tree_text_repr(tabs + 1)
+            ans += '\t' * tabs + ')' + '\n'
+
         elif self.type == 'FUNCTION':
-            type_node, id_node, params_list_node, body_node = self.children
+            type_node, id_node, params_list_node, body_node, return_node = self.children
             # FUNCTION
             ans += '\t' * tabs + 'FUNCTION ' + self.value + '\n'
-            if len(params_list_node.children) > 0:
-                param_dict = {}
-                _type = None
-                # Add params from param_list_node to param_dict
-                for i, child in enumerate(params_list_node.children):
-                    if i % 2 == 0:
-                        # Even child represents type
-                        _type = child.value
-                    else:
-                        _id = child.value
-                        param_dict[_id] = _type
-                ans += '\t' * tabs + 'PARAMS ' + str(param_dict) + '\n'
-            # RETURNS
-            if type_node.value != 'void':
-                ans += '\t' * tabs + 'RETURNS ' + type_node.value + '\n'
+            param_list = ''
+            _type = None
+            # Add params from param_list_node to param_dict
+            for i, child in enumerate(params_list_node.children):
+                if i % 2 == 0:
+                    # Even child represents type
+                    _type = child.value
+                else:
+                    _id = child.value
+                    param_list += _type + ' ' + _id
+                    if i != len(params_list_node.children) - 1:
+                        param_list += ', '
+            param_dict = '(' + param_list + ')'
+            ans += '\t' * tabs + 'PARAMS ' + param_dict + '\n'
+            ans += '\t' * tabs + 'RETURNS ' + type_node.value + '\n'
             # BODY
             ans += '\t' * tabs + body_node.tree_text_repr(tabs + 1)
+            #RETURN
+            ans += '\t' * tabs + return_node.tree_text_repr(tabs)
+            ans += '\n'
         else:
             ans += '\t' * tabs + str(self.type) + '\n'
             ans += '\t' * tabs + '(' + '\n'

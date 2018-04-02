@@ -200,6 +200,7 @@ def p_function_implementation(p):
     type_node, id_node, _id, _type, deref_depth = p[1]
     param_list_node = p[3]
     body_node = p[6]
+    return_node = p[7]
     if not global_symbol_table.symbol_exists(_id):
         # New function implementation
         symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
@@ -232,10 +233,15 @@ def p_function_implementation(p):
                 # Already implemented function
                 panic('Multiple function implementation')
     function_node = ASTNode('FUNCTION', _id)
+    type_node_val = type_node.value
+    for i in range(deref_depth):
+        type_node_val = '*' + type_node_val
+    type_node.value = type_node_val
     function_node.append_child(type_node)
     function_node.append_child(id_node)
     function_node.append_child(param_list_node)
     function_node.append_child(body_node)
+    function_node.append_child(return_node)
     p[0] = function_node
 
 
@@ -293,8 +299,8 @@ def p_param_list(p):
 
 def p_param_list_non_empty(p):
     """
-    param_list_non_empty : type function_term COMMA param_list_non_empty
-            | type function_term
+    param_list_non_empty : type function_term_r COMMA param_list_non_empty
+            | type function_term_r
     """
     # p[0] = ast_node, [(id, type, deref_depth) ...]
     if len(p) == 3:
@@ -302,16 +308,16 @@ def p_param_list_non_empty(p):
         param_ast_node, _id, deref_depth = p[2]
         node = ASTNode('PARAM_LIST', 'param_list')
         type_child = ASTNode('TYPE', _type)
-        node.append_child(type_child)
-        node.append_child(param_ast_node)
+        node.prepend_child(param_ast_node)
+        node.prepend_child(type_child)
         p[0] = node, [(_id, _type, deref_depth)]
     elif len(p) == 5:
         _type = p[1]
         param_ast_node, _id, deref_depth = p[2]
         param_list_ast_node, param_meta_data_list = p[4]
         type_child = ASTNode('TYPE', _type)
-        param_list_ast_node.append_child(type_child)
-        param_list_ast_node.append_child(param_ast_node)
+        param_list_ast_node.prepend_child(param_ast_node)
+        param_list_ast_node.prepend_child(type_child)
         p[0] = param_list_ast_node, [(_id, _type, deref_depth)] + param_meta_data_list
 
 

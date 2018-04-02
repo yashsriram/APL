@@ -55,7 +55,7 @@ def translate_asgn_or_condn(ast_node):
 
 def generate_cfg(ast_node, index=None):
     if ast_node.type == 'FUNCTION':
-        type_node, id_node, params_list_node, body_node = ast_node.children
+        type_node, id_node, params_list_node, body_node, return_node = ast_node.children
         func_cfg_node = CFGNode('FUNCTION_BLOCK', id_node.value, ast_node.is_constant, index=index)
         body_cfg_node = generate_cfg(body_node, len(func_cfg_node.children))
         func_cfg_node.append_child(body_cfg_node)
