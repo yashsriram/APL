@@ -26,6 +26,15 @@ class ASTNode:
         else:
             return False
 
+    def is_function_call(self):
+        """
+        Returns whether the token stream comming from this node is a function call or not.
+        """
+        if self.type == 'FUNCTION_CALL':
+            return True
+        else:
+            return False
+
     def tree_text_repr(self, tabs=0):
         ans = ''
         if self.type == 'VAR' or self.type == 'CONST':

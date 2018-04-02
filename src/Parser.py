@@ -268,7 +268,7 @@ def p_void_id(p):
 
 def p_return_term(p):
     """
-    return_term : function_term
+    return_term : function_term_r
     """
     p[0] = p[1]
 
@@ -321,15 +321,15 @@ def p_param_list_non_empty(p):
         p[0] = param_list_ast_node, [(_id, _type, deref_depth)] + param_meta_data_list
 
 
-def p_function_term(p):
-    """
-    function_term : ASTERISK function_term_r
-    """
-    # p[0] = ast_node, id, deref_depth
-    child_ast_node, _id, deref_depth = p[2]
-    node = ASTNode('DEREF', '*%s' % child_ast_node.value)
-    node.append_child(child_ast_node)
-    p[0] = node, _id, deref_depth + 1
+# def p_function_term(p):
+#     """
+#     function_term : ASTERISK function_term_r
+#     """
+#     # p[0] = ast_node, id, deref_depth
+#     child_ast_node, _id, deref_depth = p[2]
+#     node = ASTNode('DEREF', '*%s' % child_ast_node.value)
+#     node.append_child(child_ast_node)
+#     p[0] = node, _id, deref_depth + 1
 
 
 def p_function_term_r(p):

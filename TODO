@@ -13,3 +13,4 @@ test
 does float lit contain f at end
 separate rule for void without paramlist and return
 void fn call as statement
+direct dereferrencing on fn

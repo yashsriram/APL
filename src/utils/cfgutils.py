@@ -1,5 +1,5 @@
 temp_pk = 0
-block_pk = 1
+block_pk = 0
 
 
 def get_next_block_pk():
@@ -15,6 +15,33 @@ def get_next_temp_pk():
     temp_pk += 1
     return prev_tpk
 
+def translate_fn_call(ast_node):
+    id_node, arg_list_ast_node = ast_node.children
+    arg_list_vals = []
+    fn_cfg = ''
+    fn_val = ''
+    for child in arg_list_ast_node.children:
+        if child.is_term():
+            arg_list_vals.append(child.value)
+        elif child.is_function_call():
+            child_fn_val, child_fn_cfg = translate_fn_call(child)
+            fn_cfg += child_fn_cfg
+            arg_list_vals.append(child_fn_val)
+        else:
+            temp_id, temp_cfg = translate_asgn_or_condn(child)
+            fn_cfg += temp_cfg
+            arg_list_vals.append(temp_id)
+
+    fn_val += id_node.value
+    fn_val += '('
+    for i in range(len(arg_list_vals)):
+        fn_val += '%s' % (arg_list_vals[i])
+        if i != len(arg_list_vals) - 1:
+            fn_val += ', '
+    fn_val += ')'
+    return fn_val, fn_cfg
+
+
 
 def translate_asgn_or_condn(ast_node):
     if len(ast_node.children) == 2:
@@ -25,18 +52,30 @@ def translate_asgn_or_condn(ast_node):
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, ast_node.value, rhs.value)
             return ret_temp_id, this_cfg
         elif not lhs.is_term() and rhs.is_term():
-            temp_id, lhs_cfg = translate_asgn_or_condn(lhs)
+            if lhs.is_function_call():
+                temp_id, lhs_cfg = translate_fn_call(lhs)
+            else:
+                temp_id, lhs_cfg = translate_asgn_or_condn(lhs)
             ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id, ast_node.value, rhs.value)
             return ret_temp_id, lhs_cfg + this_cfg
         elif lhs.is_term() and not rhs.is_term():
-            temp_id, rhs_cfg = translate_asgn_or_condn(rhs)
+            if rhs.is_function_call():
+                temp_id, rhs_cfg = translate_fn_call(rhs)
+            else:
+                temp_id, rhs_cfg = translate_asgn_or_condn(rhs)
             ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, lhs.value, ast_node.value, temp_id)
             return ret_temp_id, rhs_cfg + this_cfg
         else:
-            temp_id_lhs, lhs_cfg = translate_asgn_or_condn(lhs)
-            temp_id_rhs, rhs_cfg = translate_asgn_or_condn(rhs)
+            if lhs.is_function_call():
+                temp_id_lhs, lhs_cfg = translate_fn_call(lhs)
+            else:
+                temp_id_lhs, lhs_cfg = translate_asgn_or_condn(lhs)
+            if rhs.is_function_call():
+                temp_id_rhs, rhs_cfg = translate_fn_call(rhs)
+            else:
+                temp_id_rhs, rhs_cfg = translate_asgn_or_condn(rhs)
             ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s %s %s\n' % (ret_temp_id, temp_id_lhs, ast_node.value, temp_id_rhs)
             return ret_temp_id, lhs_cfg + rhs_cfg + this_cfg
@@ -47,7 +86,10 @@ def translate_asgn_or_condn(ast_node):
             this_cfg = '%s = %s%s\n' % (ret_temp_id, ast_node.value, child_node.value)
             return ret_temp_id, this_cfg
         else:
-            temp_id, child_cfg = translate_asgn_or_condn(child_node)
+            if child_node.is_function_call():
+                temp_id, child_cfg = translate_fn_call(child_node)
+            else:
+                temp_id, child_cfg = translate_asgn_or_condn(child_node)
             ret_temp_id = 't%d' % get_next_temp_pk()
             this_cfg = '%s = %s%s\n' % (ret_temp_id, ast_node.value, temp_id)
             return ret_temp_id, child_cfg + this_cfg
@@ -56,15 +98,32 @@ def translate_asgn_or_condn(ast_node):
 def generate_cfg(ast_node, index=None):
     if ast_node.type == 'FUNCTION':
         type_node, id_node, params_list_node, body_node, return_node = ast_node.children
-        func_cfg_node = CFGNode('FUNCTION_BLOCK', id_node.value, ast_node.is_constant, index=index)
+        func_cfg_val = ''
+        func_cfg_val += ast_node.value
+        param_list = ''
+        _type = None
+        # Add params from param_list_node to param_dict
+        for i, child in enumerate(params_list_node.children):
+            if i % 2 == 0:
+                # Even child represents type
+                _type = child.value
+            else:
+                _id = child.value
+                param_list += _type + ' ' + _id
+                if i != len(params_list_node.children) - 1:
+                    param_list += ', '
+        param_dict = '(' + param_list + ')'
+        func_cfg_val += param_dict
+        func_cfg_node = CFGNode('FUNCTION_BLOCK', func_cfg_val, ast_node.is_constant, index=index)
         body_cfg_node = generate_cfg(body_node, len(func_cfg_node.children))
         func_cfg_node.append_child(body_cfg_node)
-        # Add END_BLOCK cfg node to root
+        # Add RETURN_BLOCK cfg node to root
         if index is None:
-            end_cfg_node = CFGNode('END_BLOCK', 'End',
+            return_cfg_node = CFGNode('RETURN_BLOCK', 'Return',
                                    block_number=get_next_block_pk(),
                                    index=len(func_cfg_node.children))
-            func_cfg_node.append_child(end_cfg_node)
+            return_cfg_node.append_child(return_node)
+            func_cfg_node.append_child(return_cfg_node)
 
         return func_cfg_node
     elif ast_node.type == 'BODY':
@@ -152,19 +211,19 @@ class CFGNode:
         IF_BLOCK
         ASGN_BLOCK -> value = list of pointers to asgn ast nodes
         CONDITION_BLOCK -> value = pointer to compound condition ast node
-        END_BLOCK
+        RETURN_BLOCK
 
     BODY_BLOCK has block number of its first child if exists else None
     IF_BLOCK & WHILE_BLOCK have block number of its first child which definitely exists
     ASGN_BLOCK & CONDITION_BLOCK have unique block numbers
-    END_BLOCK has biggest block number
+    RETURN_BLOCK has biggest block number
 
     ASGN_BLOCK can have only BODY_BLOCK as parent
     BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK OR FUNCTION_BLOCK as parent
     IF_BLOCK can have only BODY_BLOCK or IF_BLOCK as parent
     WHILE_BLOCK can have only BODY_BLOCK as parent
     CONDITION_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
-    END_BLOCK can have only (root) BODY_BLOCK as parent
+    RETURN_BLOCK can have only (root) BODY_BLOCK as parent
     """
 
     def __init__(self, _type, value, is_constant=False, parent=None, block_number=None, index=None):
@@ -260,6 +319,10 @@ class CFGNode:
                 rhs = asgn.children[1]
                 if rhs.is_term():
                     txt += '%s = %s\n' % (lhs.value, rhs.value)
+                elif rhs.is_function_call():
+                    fn_val, fn_cfg = translate_fn_call(rhs)
+                    this_cfg = '%s = %s\n' % (lhs.value, fn_val)
+                    txt += fn_cfg + this_cfg
                 else:
                     temp_id, rhs_cfg = translate_asgn_or_condn(rhs)
                     this_cfg = '%s = %s\n' % (lhs.value, temp_id)
@@ -273,20 +336,37 @@ class CFGNode:
             goto_true, goto_false = self.goto_block_number()
             txt += 'if(%s) goto <bb %d>\n' % (temp_id, goto_true)
             txt += 'else goto <bb %d>\n' % goto_false
-        elif self.type == 'END_BLOCK':
-            txt += '<bb %d>\nEnd' % self.block_number
+        elif self.type == 'RETURN_BLOCK':
+            txt += '<bb %d>\n' % self.block_number
+            return_node = self.children[0]
+            return_node_list = return_node.children
+            if len(return_node_list) == 1:
+                return_node_val = return_node_list[0]
+                if return_node_val.is_term():
+                    txt += 'return %s\n' %return_node_val.value
+                elif return_node_val.is_function_call():
+                    fn_val, fn_cfg = translate_fn_call(return_node_val)
+                    txt += fn_cfg
+                    txt += 'return %s\n' % (fn_val)
+                else:
+                    return_val, return_cfg = translate_asgn_or_condn(return_node_val)
+                    txt += return_cfg
+                    txt += 'return %s\n' % (return_val)
+            else:
+                txt += 'return'
+
         elif self.type == 'FUNCTION_BLOCK':
-            body_cfg_node, end_cfg_node = self.children
-            txt += 'function %s()\n' % self.value
+            body_cfg_node, return_cfg_node = self.children
+            txt += 'function %s\n' % self.value
             txt += body_cfg_node.tree_text_repr()
-            txt += end_cfg_node.tree_text_repr()
+            txt += return_cfg_node.tree_text_repr()
 
         return txt
 
     def tree_text_repr(self):
         if self.type == 'ASGN_BLOCK' \
                 or self.type == 'CONDITION_BLOCK' \
-                or self.type == 'END_BLOCK' \
+                or self.type == 'RETURN_BLOCK' \
                 or self.type == 'FUNCTION_BLOCK':
             return self.text_repr() + '\n'
         else:
