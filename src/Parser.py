@@ -412,6 +412,8 @@ def p_condition(p):
     right_ast_node, right_type, right_deref_depth = p[3]
     if left_type != right_type or left_deref_depth != right_deref_depth:
         panic('Type mismatch at boolean operator %s' % p[2])
+    if left_deref_depth != 0:
+        panic('Pointer Comparision is not allowed')
     if p[2] == '==':
         node = ASTNode('EQ', '==', left_ast_node.is_constant and right_ast_node.is_constant)
         node.append_child(left_ast_node)
@@ -698,6 +700,8 @@ def p_expression_binary_op(p):
     right_child_node, right_type, right_deref_depth = p[3]
     if left_type != right_type or left_deref_depth != right_deref_depth:
         panic('Type mismatch for operation %s' % p[2])
+    if left_deref_depth != 0:
+        panic('Pointer Arthmatic is not allowed')
     if p[2] == '+':
         node = ASTNode('PLUS', '+', left_child_node.is_constant and right_child_node.is_constant)
         node.append_child(left_child_node)
@@ -745,6 +749,9 @@ def p_expression_float_lit(p):
 
 def p_expression_term(p):
     """expression : term"""
+    term_ast_node, _type, deref_depth = p[1]
+    if term_ast_node.type == 'VAR' and deref_depth == 0:
+        panic('Direct use of non pointer variable')
     p[0] = p[1]
 
 
