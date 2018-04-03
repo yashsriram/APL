@@ -13,7 +13,8 @@ def get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack)
 def procedure_table_text_repr(symbol_table):
     ans = 'Procedure table :-\n-----------------------------------------------------------------\n'
     ans += 'Name\t|\tReturn Type\t|\tParameter List\n'
-    for _id, symbol in symbol_table.symbols.items():
+    procedure_list = []
+    for func_id, symbol in symbol_table.symbols.items():
         if symbol.is_function():
             return_type_txt = symbol.type + '*' * symbol.deref_depth
             params_txt_list = []
@@ -22,9 +23,24 @@ def procedure_table_text_repr(symbol_table):
                 _id, _type, deref_depth = ordered_param
                 params_txt_list.append('%s %s' % (_type, '*' * deref_depth + _id))
             params_txt = ', '.join(params_txt_list)
-            ans += '%s\t|\t%s\t\t|\t%s\n' % (_id, return_type_txt, params_txt)
-    ans += '-----------------------------------------------------------------'
+            proc_txt = '%s\t|\t%s\t\t|\t%s\n' % (func_id, return_type_txt, params_txt)
+            procedure_list.append((func_id,proc_txt))
+    procedure_list.sort(key=lambda procedure: procedure[0])
+    for procedure in procedure_list:
+        ans += procedure[1]
+    ans += '-----------------------------------------------------------------\n'
     return ans
+
+def variable_table_text_repr(symbol_table, name):
+    ans = 'Variable table :-\n'
+    ans += '-----------------------------------------------------------------\n'
+    ans += 'Name\t|\tScope\t\t|\tBase Type\t|\tDerived Type\n'
+    ans += '-----------------------------------------------------------------\n'
+    ans += symbol_table.variable_table_text_repr(name)
+    ans += '-----------------------------------------------------------------\n'
+    ans += '-----------------------------------------------------------------\n'
+    return ans
+
 
 
 class SymbolTable:
@@ -83,11 +99,21 @@ class SymbolTable:
 
     def variable_table_text_repr(self, name):
         ans = ''
+        param_list = []
+        func_list = []
         for _id, symbol in self.symbols.items():
             if symbol.is_function():
-                ans += symbol.its_table.variable_table_text_repr(symbol.id)
+                txt = symbol.its_table.variable_table_text_repr(symbol.id)
+                func_list.append((symbol.id,txt))
             else:
-                ans += '%s\t|\t%s\t|\t%s\t|\t%s\n' % (symbol.id, name, symbol.type, '*' * symbol.deref_depth)
+                txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (symbol.id, 'procedure ' + name, symbol.type, '*' * symbol.deref_depth)
+                param_list.append((symbol.id,txt))
+        param_list.sort(key=lambda tup: tup[0])
+        func_list.sort(key=lambda tup: tup[0])
+        for param in param_list:
+            ans += param[1]
+        for func in func_list:
+            ans += func[1]
         return ans
 
 

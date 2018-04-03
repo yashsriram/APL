@@ -3,7 +3,7 @@ import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
 from utils.cfgutils import generate_cfg
-from utils.symbolutils import get_non_func_symbol_from_stack, SymbolTable, Symbol, procedure_table_text_repr
+from utils.symbolutils import get_non_func_symbol_from_stack, SymbolTable, Symbol, procedure_table_text_repr, variable_table_text_repr
 
 ########################################################################################
 
@@ -135,7 +135,9 @@ def p_initial_production(p):
             output_file.write(cfg.tree_text_repr())
 
     # print(procedure_table_text_repr(global_symbol_table))
-    print(global_symbol_table.variable_table_text_repr('global'))
+    with open(input_file_name + '.sym', 'w') as output_file:
+        output_file.write(procedure_table_text_repr(global_symbol_table))
+        output_file.write(variable_table_text_repr(global_symbol_table,'global'))
 
 
 # -------------------------------- CODE --------------------------------
