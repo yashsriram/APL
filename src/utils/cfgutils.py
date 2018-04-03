@@ -130,7 +130,7 @@ def generate_cfg(ast_node, index=None):
         body_cfg_node = CFGNode('BODY_BLOCK', 'body_block', ast_node.is_constant, index=index)
         block_siblings = []
         for child in ast_node.children:
-            if child.type == 'ASGN':
+            if child.type == 'ASGN' or child.type == 'FUNCTION_CALL':
                 block_siblings.append(child)
             else:
                 # Merge all contiguous assignment statements into one CFGNode
@@ -315,18 +315,22 @@ class CFGNode:
             for child in self.value:
                 # Assignment
                 asgn = child
-                lhs = asgn.children[0]
-                rhs = asgn.children[1]
-                if rhs.is_term():
-                    txt += '%s = %s\n' % (lhs.value, rhs.value)
-                elif rhs.is_function_call():
-                    fn_val, fn_cfg = translate_fn_call(rhs)
-                    this_cfg = '%s = %s\n' % (lhs.value, fn_val)
-                    txt += fn_cfg + this_cfg
-                else:
-                    temp_id, rhs_cfg = translate_asgn_or_condn(rhs)
-                    this_cfg = '%s = %s\n' % (lhs.value, temp_id)
-                    txt += rhs_cfg + this_cfg
+                if asgn.type == 'ASGN':
+                    lhs = asgn.children[0]
+                    rhs = asgn.children[1]
+                    if rhs.is_term():
+                        txt += '%s = %s\n' % (lhs.value, rhs.value)
+                    elif rhs.is_function_call():
+                        fn_val, fn_cfg = translate_fn_call(rhs)
+                        this_cfg = '%s = %s\n' % (lhs.value, fn_val)
+                        txt += fn_cfg + this_cfg
+                    else:
+                        temp_id, rhs_cfg = translate_asgn_or_condn(rhs)
+                        this_cfg = '%s = %s\n' % (lhs.value, temp_id)
+                        txt += rhs_cfg + this_cfg
+                elif asgn.type == 'FUNCTION_CALL':
+                    fn_val, fn_cfg = translate_fn_call(asgn)
+                    txt += fn_cfg + fn_val + '\n'
             goto = self.goto_block_number()
             txt += 'goto <bb %d>\n' % goto
         elif self.type == 'CONDITION_BLOCK':
