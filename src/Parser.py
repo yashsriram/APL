@@ -645,7 +645,6 @@ def p_expression_function_call(p):
 def p_func_expr(p):
     """
     func_expr : ID L_PAREN arg_list R_PAREN
-            | ASTERISK func_expr
     """
     if len(p) == 5:
         _id = p[1]
@@ -666,13 +665,6 @@ def p_func_expr(p):
         node.append_child(id_node)
         node.append_child(arg_list_ast_node)
         p[0] = node, func_symbol.type, func_symbol.deref_depth
-    elif len(p) == 3:
-        func_expr_node, _type, deref_depth = p[2]
-        if deref_depth <= 0:
-            panic('Too much de-referencing on function call')
-        node = ASTNode('DEREF', '*%s' % func_expr_node.value)
-        node.append_child(func_expr_node)
-        p[0] = node, _type, deref_depth - 1
 
 
 def p_arg_list(p):
