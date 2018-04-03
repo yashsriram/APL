@@ -27,7 +27,8 @@ def procedure_table_text_repr(symbol_table):
             procedure_list.append((func_id,proc_txt))
     procedure_list.sort(key=lambda procedure: procedure[0])
     for procedure in procedure_list:
-        ans += procedure[1]
+        if procedure[0] != 'main':
+            ans += procedure[1]
     ans += '-----------------------------------------------------------------\n'
     return ans
 

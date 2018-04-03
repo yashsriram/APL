@@ -205,7 +205,12 @@ def p_function_implementation(p):
     type_node, id_node, _id, _type, deref_depth = p[1]
     param_list_node = p[3]
     body_node = p[6]
-    return_node = p[7]
+    return_node, return_existence = p[7]
+    if _id == 'main':
+        if len(param_list_node.children) != 0:
+            panic('main function cannot have parameters')
+        if return_existence:
+            panic('main function cannot have return statement')
     if not global_symbol_table.symbol_exists(_id):
         # New function implementation
         symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
@@ -574,12 +579,15 @@ def p_return_statement(p):
             panic('Improper return type in function implementation')
         node = ASTNode('RETURN', 'return')
         node.append_child(ast_node)
-        p[0] = node
+        p[0] = node, True
     elif len(p) == 3 or len(p) == 1:
         if fun_type != 'void':
             panic('Improper return type in function implementation')
         node = ASTNode('RETURN', 'return')
-        p[0] = node
+        if len(p) == 3:
+            p[0] = node, True
+        elif len(p) == 1:
+            p[0] = node, False
 
 
 # -------------------------------- ASSIGNMENT --------------------------------
