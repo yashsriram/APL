@@ -6,11 +6,10 @@
 // correct output file names
 // improve add_child functionality
 // ensure return in int and float return functions
-*a = b or *a = *b
+// function call without using its return value
+// *a = b or *a = *b
 & allowed in RHS only?
-function call without using its return value
-test
-does float lit contain f at end
-separate rule for void without paramlist and return
-void fn call as statement
 direct dereferrencing on fn
+separate rule for void without paramlist and return
+does float lit contain f at end
+test

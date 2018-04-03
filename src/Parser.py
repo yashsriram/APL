@@ -3,7 +3,7 @@ import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
 from utils.cfgutils import generate_cfg
-from utils.symbolutils import get_non_func_symbol_from_stack, SymbolTable, Symbol
+from utils.symbolutils import get_non_func_symbol_from_stack, SymbolTable, Symbol, procedure_table_text_repr
 
 ########################################################################################
 
@@ -134,6 +134,9 @@ def p_initial_production(p):
             cfg = generate_cfg(child)
             output_file.write(cfg.tree_text_repr())
 
+    # print(procedure_table_text_repr(global_symbol_table))
+    print(global_symbol_table.variable_table_text_repr('global'))
+
 
 # -------------------------------- CODE --------------------------------
 def p_code(p):
@@ -215,8 +218,8 @@ def p_function_implementation(p):
         else:
             if existing_symbol.is_prototype:
                 if existing_symbol.type == _type and existing_symbol.deref_depth == deref_depth:
-                    param_symbols1 = current_symbol_table.get_ordered_param_symbols()
-                    param_symbols2 = existing_symbol.its_table.get_ordered_param_symbols()
+                    param_symbols1 = current_symbol_table.get_param_signature()
+                    param_symbols2 = existing_symbol.its_table.get_param_signature()
                     if param_symbols1 == param_symbols2:
                         symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0,
                                         its_table=current_symbol_table,
@@ -510,11 +513,13 @@ def p_statement(p):
             else:
                 panic('Symbol already declared %s' % _id)
 
+
 def p_statement_func_expr(p):
     """
     statement : func_expr
     """
-    p[0] = p[1][0]
+    node, _, _ = p[1]
+    p[0] = node
 
 
 # -------------------------------- DECLARATION --------------------------------
@@ -575,7 +580,6 @@ def p_return_statement(p):
         p[0] = node
 
 
-
 # -------------------------------- ASSIGNMENT --------------------------------
 def p_assignment(p):
     """
@@ -628,7 +632,7 @@ def p_expression_function_call(p):
     p[0] = p[1]
 
 
-def p_expression_function_expression(p):
+def p_func_expr(p):
     """
     func_expr : ID L_PAREN arg_list R_PAREN
             | ASTERISK func_expr
@@ -640,7 +644,7 @@ def p_expression_function_expression(p):
         if global_symbol_table.symbol_exists(_id):
             func_symbol = global_symbol_table.get_symbol(_id)
             if func_symbol.is_function():
-                param_list = func_symbol.its_table.get_ordered_param_symbols()
+                param_list = func_symbol.its_table.get_param_signature()
                 if param_list != arg_types:
                     panic('Function %s arguments are mismatched' % _id)
             else:

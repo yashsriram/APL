@@ -10,6 +10,23 @@ def get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack)
     raise KeyError
 
 
+def procedure_table_text_repr(symbol_table):
+    ans = 'Procedure table :-\n-----------------------------------------------------------------\n'
+    ans += 'Name\t|\tReturn Type\t|\tParameter List\n'
+    for _id, symbol in symbol_table.symbols.items():
+        if symbol.is_function():
+            return_type_txt = symbol.type + '*' * symbol.deref_depth
+            params_txt_list = []
+            ordered_params = symbol.its_table.get_params_in_order()
+            for ordered_param in ordered_params:
+                _id, _type, deref_depth = ordered_param
+                params_txt_list.append('%s %s' % (_type, '*' * deref_depth + _id))
+            params_txt = ', '.join(params_txt_list)
+            ans += '%s\t|\t%s\t\t|\t%s\n' % (_id, return_type_txt, params_txt)
+    ans += '-----------------------------------------------------------------'
+    return ans
+
+
 class SymbolTable:
     def __init__(self, _type=None, deref_depth=None):
         self.type = _type
@@ -35,7 +52,11 @@ class SymbolTable:
         except KeyError:
             return False
 
-    def get_ordered_param_symbols(self):
+    def get_param_signature(self):
+        """
+        returns only type, deref depth and index of param
+        does not care about its name
+        """
         param_symbols = []
         for sym in self.symbols.values():
             if sym.param_index is not None:
@@ -45,6 +66,29 @@ class SymbolTable:
         for sym in param_symbols:
             param_req_symbols.append((sym.type, sym.deref_depth, sym.param_index))
         return param_req_symbols
+
+    def get_params_in_order(self):
+        """
+        returns params of the symbol table if it is a function in their defined order
+        """
+        param_symbols = []
+        for sym in self.symbols.values():
+            if sym.param_index is not None:
+                param_symbols.append(sym)
+        param_symbols.sort(key=lambda symbol: symbol.param_index)
+        param_req_symbols = []
+        for sym in param_symbols:
+            param_req_symbols.append((sym.id, sym.type, sym.deref_depth))
+        return param_req_symbols
+
+    def variable_table_text_repr(self, name):
+        ans = ''
+        for _id, symbol in self.symbols.items():
+            if symbol.is_function():
+                ans += symbol.its_table.variable_table_text_repr(symbol.id)
+            else:
+                ans += '%s\t|\t%s\t|\t%s\t|\t%s\n' % (symbol.id, name, symbol.type, '*' * symbol.deref_depth)
+        return ans
 
 
 class Symbol:
