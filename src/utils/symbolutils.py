@@ -25,7 +25,7 @@ def procedure_table_text_repr(symbol_table):
             params_txt = ', '.join(params_txt_list)
             proc_txt = '%s\t|\t%s\t\t|\t%s\n' % (func_id, return_type_txt, params_txt)
             procedure_list.append((func_id, proc_txt))
-    procedure_list.sort(key=lambda procedure: procedure[0])
+    procedure_list.sort(key=lambda p: p[0])
     for procedure in procedure_list:
         if procedure[0] != 'main':
             ans += procedure[1]
@@ -108,7 +108,7 @@ class SymbolTable:
                 func_list.append((symbol.id, txt))
             else:
                 txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (
-                symbol.id, 'procedure ' + name, symbol.type, '*' * symbol.deref_depth)
+                    symbol.id, 'procedure ' + name, symbol.type, '*' * symbol.deref_depth)
                 param_list.append((symbol.id, txt))
         param_list.sort(key=lambda tup: tup[0])
         func_list.sort(key=lambda tup: tup[0])
