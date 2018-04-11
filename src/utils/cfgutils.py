@@ -15,6 +15,7 @@ def get_next_temp_pk():
     temp_pk += 1
     return prev_tpk
 
+
 def translate_fn_call(ast_node):
     id_node, arg_list_ast_node = ast_node.children
     arg_list_vals = []
@@ -40,7 +41,6 @@ def translate_fn_call(ast_node):
             fn_val += ', '
     fn_val += ')'
     return fn_val, fn_cfg
-
 
 
 def translate_asgn_or_condn(ast_node):
@@ -120,8 +120,8 @@ def generate_cfg(ast_node, index=None):
         # Add RETURN_BLOCK cfg node to root
         if index is None:
             return_cfg_node = CFGNode('RETURN_BLOCK', 'Return',
-                                   block_number=get_next_block_pk(),
-                                   index=len(func_cfg_node.children))
+                                      block_number=get_next_block_pk(),
+                                      index=len(func_cfg_node.children))
             return_cfg_node.append_child(return_node)
             func_cfg_node.append_child(return_cfg_node)
 
@@ -347,7 +347,7 @@ class CFGNode:
             if len(return_node_list) == 1:
                 return_node_val = return_node_list[0]
                 if return_node_val.is_term():
-                    txt += 'return %s\n' %return_node_val.value
+                    txt += 'return %s\n' % return_node_val.value
                 elif return_node_val.is_function_call():
                     fn_val, fn_cfg = translate_fn_call(return_node_val)
                     txt += fn_cfg

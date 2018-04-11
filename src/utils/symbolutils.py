@@ -24,13 +24,14 @@ def procedure_table_text_repr(symbol_table):
                 params_txt_list.append('%s %s' % (_type, '*' * deref_depth + _id))
             params_txt = ', '.join(params_txt_list)
             proc_txt = '%s\t|\t%s\t\t|\t%s\n' % (func_id, return_type_txt, params_txt)
-            procedure_list.append((func_id,proc_txt))
+            procedure_list.append((func_id, proc_txt))
     procedure_list.sort(key=lambda procedure: procedure[0])
     for procedure in procedure_list:
         if procedure[0] != 'main':
             ans += procedure[1]
     ans += '-----------------------------------------------------------------\n'
     return ans
+
 
 def variable_table_text_repr(symbol_table, name):
     ans = 'Variable table :-\n'
@@ -41,7 +42,6 @@ def variable_table_text_repr(symbol_table, name):
     ans += '-----------------------------------------------------------------\n'
     ans += '-----------------------------------------------------------------\n'
     return ans
-
 
 
 class SymbolTable:
@@ -105,10 +105,11 @@ class SymbolTable:
         for _id, symbol in self.symbols.items():
             if symbol.is_function():
                 txt = symbol.its_table.variable_table_text_repr(symbol.id)
-                func_list.append((symbol.id,txt))
+                func_list.append((symbol.id, txt))
             else:
-                txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (symbol.id, 'procedure ' + name, symbol.type, '*' * symbol.deref_depth)
-                param_list.append((symbol.id,txt))
+                txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (
+                symbol.id, 'procedure ' + name, symbol.type, '*' * symbol.deref_depth)
+                param_list.append((symbol.id, txt))
         param_list.sort(key=lambda tup: tup[0])
         func_list.sort(key=lambda tup: tup[0])
         for param in param_list:

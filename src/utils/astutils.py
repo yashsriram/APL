@@ -83,7 +83,7 @@ class ASTNode:
             ans += '\t' * tabs + 'RETURNS ' + type_node.value + '\n'
             # BODY
             ans += '\t' * tabs + body_node.tree_text_repr(tabs + 1)
-            #RETURN
+            # RETURN
             if self.value != 'main':
                 ans += '\t' * tabs + return_node.tree_text_repr(tabs)
             ans += '\n'
