@@ -1,4 +1,4 @@
-def get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack):
+def access_variable_symbol(_id, global_symbol_table, symbol_table_stack):
     for i in range(len(symbol_table_stack)):
         ri = len(symbol_table_stack) - i - 1
         sym = symbol_table_stack[ri].get_non_func_symbol(_id)
@@ -48,13 +48,16 @@ class SymbolTable:
     def __init__(self, _type=None, deref_depth=None):
         self.type = _type
         self.deref_depth = deref_depth
+        self.cumulative_width = 0
         self.symbols = {}
 
     def symbol_exists(self, _id):
         return _id in self.symbols.keys()
 
     def add_symbol(self, symbol):
+        symbol.offset = self.cumulative_width
         self.symbols[symbol.id] = symbol
+        self.cumulative_width += symbol.width
 
     def get_symbol(self, _id):
         return self.symbols[_id]
@@ -128,7 +131,7 @@ class Symbol:
     LOCAL_SCOPE = 'local_scope'
     PARAM_SCOPE = 'param_scope'
 
-    def __init__(self, _id, _type, scope, deref_depth, width, offset=0, its_table=None, param_index=None,
+    def __init__(self, _id, _type, scope, deref_depth, width, offset=None, its_table=None, param_index=None,
                  is_prototype=False):
         self.id = _id
         self.type = _type

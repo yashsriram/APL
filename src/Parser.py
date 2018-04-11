@@ -3,7 +3,7 @@ import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
 from utils.cfgutils import generate_cfg
-from utils.symbolutils import get_non_func_symbol_from_stack, SymbolTable, Symbol, procedure_table_text_repr, \
+from utils.symbolutils import access_variable_symbol, SymbolTable, Symbol, procedure_table_text_repr, \
     variable_table_text_repr
 
 ########################################################################################
@@ -608,7 +608,7 @@ def p_assignment(p):
         _id = p[1]
         lhs_symbol = None
         try:
-            lhs_symbol = get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack)
+            lhs_symbol = access_variable_symbol(_id, global_symbol_table, symbol_table_stack)
         except KeyError:
             panic('Symbol %s accessed without declaration' % _id)
         if lhs_symbol.deref_depth == 0:
@@ -780,7 +780,7 @@ def p_term(p):
     if len(p) == 2:
         try:
             _id = p[1]
-            sym = get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack)
+            sym = access_variable_symbol(_id, global_symbol_table, symbol_table_stack)
             p[0] = ASTNode('VAR', _id), sym.type, sym.deref_depth
         except KeyError:
             panic('Symbol accessed without declaration')
@@ -795,7 +795,7 @@ def p_term(p):
         elif p[1] == '&':
             try:
                 _id = p[2]
-                sym = get_non_func_symbol_from_stack(_id, global_symbol_table, symbol_table_stack)
+                sym = access_variable_symbol(_id, global_symbol_table, symbol_table_stack)
                 node = ASTNode('ADDR', '&%s' % _id)
                 id_node = ASTNode('VAR', _id)
                 node.append_child(id_node)
