@@ -3,7 +3,7 @@ import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
 from utils.cfgutils import generate_cfg
-from utils.assemblyutils import generate_assembly_code
+from utils.assemblyutils import generate_assembly_code_for_fn, generate_assembly_code_for_globals
 from utils.symbolutils import access_variable_symbol, SymbolTable, Symbol, procedure_table_text_repr, \
     variable_table_text_repr
 
@@ -127,19 +127,22 @@ precedence = (
 def p_initial_production(p):
     """initial_production : code"""
     code_node = p[1]
+    # ast
     with open(input_file_name + '.ast', 'w') as output_file:
         for child in code_node.children:
             output_file.write(child.tree_text_repr())
 
+    # cfg, asm code
+    print(generate_assembly_code_for_globals(global_symbol_table))
     with open(input_file_name + '.cfg', 'w') as output_file:
         for child in code_node.children:
             cfg = generate_cfg(child)
             fn_name = child.value
             fn_symbol = global_symbol_table.get_symbol(fn_name)
             output_file.write(cfg.tree_text_repr())
-            print(generate_assembly_code(cfg,fn_symbol.its_table,fn_name))
+            print(generate_assembly_code_for_fn(cfg, fn_symbol.its_table, fn_name))
 
-    # print(procedure_table_text_repr(global_symbol_table))
+    # sym
     with open(input_file_name + '.sym', 'w') as output_file:
         output_file.write(procedure_table_text_repr(global_symbol_table))
         output_file.write(variable_table_text_repr(global_symbol_table, 'global'))

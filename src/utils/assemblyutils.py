@@ -13,7 +13,7 @@ def free_register(index):
     registers_available[index] = 1
 
 
-def generate_binary_code(operator, op1, op2):
+def generate_assembly_code_for_binary_op(operator, op1, op2):
     cur_index = get_available_register()
     assembly_code = ''
     if operator == '+':
@@ -93,7 +93,7 @@ def generate_binary_code(operator, op1, op2):
     return this_index, assembly_code
 
 
-def generate_unary_code(operator, op1):
+def generate_assembly_code_for_unary_op(operator, op1):
     cur_index = get_available_register()
     assembly_code = ''
     if operator == '-':
@@ -110,7 +110,7 @@ def generate_unary_code(operator, op1):
     return this_index, assembly_code
 
 
-def get_register_for_rhs_term(astnode, symbol_table):
+def generate_register_for_rhs_term(astnode, symbol_table):
     assembly_code = ''
     if astnode.type == 'CONST':
         index = get_available_register()
@@ -124,7 +124,7 @@ def get_register_for_rhs_term(astnode, symbol_table):
         assembly_code += 'lw $s%d, %d($sp)\n' % (index, offset)
         return index, assembly_code
     elif astnode.type == 'DEREF':
-        child_index, child_assembly_code = get_register_for_rhs_term(astnode.children[0], symbol_table)
+        child_index, child_assembly_code = generate_register_for_rhs_term(astnode.children[0], symbol_table)
         index = get_available_register()
         assembly_code += '\t'
         assembly_code += 'lw $s%d, 0($s%d)\n' % (index, child_index)
@@ -138,39 +138,39 @@ def get_register_for_rhs_term(astnode, symbol_table):
         return index, assembly_code
 
 
-def get_register_for_lhs_term(astnode, symbol_table):
+def generate_register_for_lhs_term(astnode, symbol_table):
     if astnode.type == 'DEREF':
-        index, assembly_code = get_register_for_rhs_term(astnode.children[0], symbol_table)
+        index, assembly_code = generate_register_for_rhs_term(astnode.children[0], symbol_table)
         return index, assembly_code
 
 
-def get_assembly_code_for_expression(astnode, symbol_table):
+def generate_assembly_code_for_expression(astnode, symbol_table):
     if astnode.is_term():
-        index, assembly_code = get_register_for_rhs_term(astnode, symbol_table)
+        index, assembly_code = generate_register_for_rhs_term(astnode, symbol_table)
         return index, assembly_code
     else:
         if len(astnode.children) == 2:
             lhs = astnode.children[0]
             rhs = astnode.children[1]
-            lhs_index, lhs_assembly_code = get_assembly_code_for_expression(lhs, symbol_table)
-            rhs_index, rhs_assembly_code = get_assembly_code_for_expression(rhs, symbol_table)
-            this_index, this_assembly_code = generate_binary_code(astnode.value, lhs_index, rhs_index)
+            lhs_index, lhs_assembly_code = generate_assembly_code_for_expression(lhs, symbol_table)
+            rhs_index, rhs_assembly_code = generate_assembly_code_for_expression(rhs, symbol_table)
+            this_index, this_assembly_code = generate_assembly_code_for_binary_op(astnode.value, lhs_index, rhs_index)
             return this_index, lhs_assembly_code + rhs_assembly_code + this_assembly_code
         elif len(astnode.children) == 1:
             child = astnode.children[0]
-            child_index, child_assembly_code = get_assembly_code_for_expression(child, symbol_table)
-            this_index, this_assembly_code = generate_unary_code(astnode.value, child_index)
+            child_index, child_assembly_code = generate_assembly_code_for_expression(child, symbol_table)
+            this_index, this_assembly_code = generate_assembly_code_for_unary_op(astnode.value, child_index)
             return this_index, child_assembly_code + this_assembly_code
 
 
-def get_assembly_code_for_assignment(astnode, symbol_table):
+def generate_assembly_code_for_assignment(astnode, symbol_table):
     if astnode.type == 'ASGN':
         lhs = astnode.children[0]
         rhs = astnode.children[1]
         this_assembly_code = ''
-        rhs_index, rhs_assembly_code = get_assembly_code_for_expression(rhs, symbol_table)
+        rhs_index, rhs_assembly_code = generate_assembly_code_for_expression(rhs, symbol_table)
         if lhs.type == 'DEREF':
-            lhs_index, lhs_assembly_code = get_register_for_lhs_term(lhs, symbol_table)
+            lhs_index, lhs_assembly_code = generate_register_for_lhs_term(lhs, symbol_table)
             this_assembly_code += '\t'
             this_assembly_code += 'sw $s%d, 0($s%d)\n' % (rhs_index, lhs_index)
             free_register(lhs_index)
@@ -187,7 +187,7 @@ def get_assembly_code_for_assignment(astnode, symbol_table):
         return ''
 
 
-def generate_assembly_code(cfgnode, symbol_table, fn_name=None):
+def generate_assembly_code_for_fn(cfgnode, symbol_table, fn_name=None):
     txt = ''
     if cfgnode.type == 'ASGN_BLOCK':
         txt += 'label%d:\n' % cfgnode.block_number
@@ -195,14 +195,14 @@ def generate_assembly_code(cfgnode, symbol_table, fn_name=None):
             # Assignment
             asgn = child
             if asgn.type == 'ASGN':
-                txt += get_assembly_code_for_assignment(asgn, symbol_table)
+                txt += generate_assembly_code_for_assignment(asgn, symbol_table)
         goto = cfgnode.goto_block_number()
         txt += '\t'
         txt += 'j label%d\n' % goto
         txt += '\n'
     elif cfgnode.type == 'CONDITION_BLOCK':
         txt += 'label%d:\n' % cfgnode.block_number
-        cond_index, cond_assembly_code = get_assembly_code_for_expression(cfgnode.value, symbol_table)
+        cond_index, cond_assembly_code = generate_assembly_code_for_expression(cfgnode.value, symbol_table)
         goto_true, goto_false = cfgnode.goto_block_number()
         txt += cond_assembly_code
         txt += '\t'
@@ -217,7 +217,7 @@ def generate_assembly_code(cfgnode, symbol_table, fn_name=None):
         return_node_list = return_node.children
         if len(return_node_list) == 1:
             return_node_val = return_node_list[0]
-            return_index, return_assembly_code = get_assembly_code_for_expression(return_node_val, symbol_table)
+            return_index, return_assembly_code = generate_assembly_code_for_expression(return_node_val, symbol_table)
             txt += return_assembly_code
             txt += '\t'
             txt += 'move $v1 $s%d\n' % return_index
@@ -231,13 +231,34 @@ def generate_assembly_code(cfgnode, symbol_table, fn_name=None):
 
     elif cfgnode.type == 'FUNCTION_BLOCK':
         body_cfg_node, return_cfg_node = cfgnode.children
+        txt = '\t.text\t# The .text assembler directive indicates\n\t.globl %s\t# The following is the code\n' % fn_name
         txt += '%s:\n' % fn_name
-        txt += generate_assembly_code(body_cfg_node, symbol_table)
-        txt += generate_assembly_code(return_cfg_node, symbol_table, fn_name)
+        txt += generate_assembly_code_for_fn(body_cfg_node, symbol_table)
+        txt += generate_assembly_code_for_fn(return_cfg_node, symbol_table, fn_name)
         txt += '\n'
     else:
         txt = ''
         for child in cfgnode.children:
-            txt += generate_assembly_code(child, symbol_table)
+            txt += generate_assembly_code_for_fn(child, symbol_table)
+
+    return txt
+
+
+def generate_assembly_code_for_globals(global_sym_table):
+    txt = '\t.data\n'
+    sorted_globals_list = []
+    for _id, global_sym in global_sym_table.symbols.items():
+        if not global_sym.is_function():
+            sorted_globals_list.append((_id, global_sym))
+
+    sorted_globals_list.sort(key=lambda p: p[0])
+
+    for id_sym_tuple in sorted_globals_list:
+        _id = id_sym_tuple[0]
+        sym = id_sym_tuple[1]
+        if sym.type == 'float' and sym.deref_depth == 0:
+            txt += 'global_%s:\t.space\t8\n' % _id
+        else:
+            txt += 'global_%s:\t.word\t0\n' % _id
 
     return txt
