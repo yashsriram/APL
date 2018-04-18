@@ -199,7 +199,7 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, fn_name=None):
         goto = cfgnode.goto_block_number()
         txt += '\t'
         txt += 'j label%d\n' % goto
-        txt += '\n'
+
     elif cfgnode.type == 'CONDITION_BLOCK':
         txt += 'label%d:\n' % cfgnode.block_number
         cond_index, cond_assembly_code = generate_assembly_code_for_expression(cfgnode.value, symbol_table)
@@ -210,7 +210,7 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, fn_name=None):
         txt += '\t'
         txt += 'j label%d\n' % goto_false
         free_register(cond_index)
-        txt += '\n'
+
     elif cfgnode.type == 'RETURN_BLOCK':
         txt += 'label%d:\n' % cfgnode.block_number
         return_node = cfgnode.children[0]
@@ -220,23 +220,36 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, fn_name=None):
             return_index, return_assembly_code = generate_assembly_code_for_expression(return_node_val, symbol_table)
             txt += return_assembly_code
             txt += '\t'
-            txt += 'move $v1 $s%d\n' % return_index
+            txt += 'move $v1, $s%d # move return value to $v1\n' % return_index
             txt += '\t'
             txt += 'j epilogue_%s\n' % fn_name
             free_register(return_index)
         else:
             txt += '\t'
             txt += 'j epilogue\n'
-        txt += '\n'
 
     elif cfgnode.type == 'FUNCTION_BLOCK':
         symbol_table.reset_offsets()
         body_cfg_node, return_cfg_node = cfgnode.children
         txt = '\t.text\t# The .text assembler directive indicates\n\t.globl %s\t# The following is the code\n' % fn_name
         txt += '%s:\n' % fn_name
+        txt += '# Prologue begins\n'
+        txt += '\tsw $ra, 0($sp)\t# Save the return address\n'
+        txt += '\tsw $fp, -4($sp)\t# Save the frame pointer\n'
+        txt += '\tsub $fp, $sp, 8\t# Update the frame pointer\n'
+        txt += '\tsub $sp, $sp, %d\t# Make space for the locals\n' % (symbol_table.local_sym_cumulative_width + 8)
+        txt += '# Prologue ends\n'
         txt += generate_assembly_code_for_fn(body_cfg_node, symbol_table)
         txt += generate_assembly_code_for_fn(return_cfg_node, symbol_table, fn_name)
         txt += '\n'
+        txt += '# Epilogue begins\n'
+        txt += 'epilogue_%s:\n' % fn_name
+        txt += '\tadd $sp, $sp, %d\n' % (symbol_table.local_sym_cumulative_width + 8)
+        txt += '\tlw $fp, -4($sp)\n'
+        txt += '\tlw $ra, 0($sp)\n'
+        txt += '\tjr $ra\t# Jump back to the called procedure\n'
+        txt += '# Epilogue ends\n'
+
     else:
         txt = ''
         for child in cfgnode.children:
