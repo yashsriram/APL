@@ -230,6 +230,7 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, fn_name=None):
         txt += '\n'
 
     elif cfgnode.type == 'FUNCTION_BLOCK':
+        symbol_table.reset_offsets()
         body_cfg_node, return_cfg_node = cfgnode.children
         txt = '\t.text\t# The .text assembler directive indicates\n\t.globl %s\t# The following is the code\n' % fn_name
         txt += '%s:\n' % fn_name

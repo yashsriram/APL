@@ -177,7 +177,7 @@ def p_global_dlist(p):
     for declaration in dlist:
         _id, deref_depth = declaration
         if not global_symbol_table.symbol_exists(_id):
-            symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 4)
+            symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth)
             global_symbol_table.add_symbol(symbol)
         else:
             panic('Symbol already exists')
@@ -194,8 +194,7 @@ def p_function_prototype(p):
     current_symbol_table = symbol_table_stack[-1]
     type_node, id_node, _id, _type, deref_depth = p[1]
     if not global_symbol_table.symbol_exists(_id):
-        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
-                        is_prototype=True)
+        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, its_table=current_symbol_table, is_prototype=True)
         global_symbol_table.add_symbol(symbol)
         symbol_table_stack.pop()
     else:
@@ -221,7 +220,7 @@ def p_function_implementation(p):
             panic('main function cannot have return statement')
     if not global_symbol_table.symbol_exists(_id):
         # New function implementation
-        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0, its_table=current_symbol_table,
+        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, its_table=current_symbol_table,
                         is_prototype=False)
         global_symbol_table.add_symbol(symbol)
         symbol_table_stack.pop()
@@ -236,7 +235,7 @@ def p_function_implementation(p):
                     param_symbols1 = current_symbol_table.get_param_signature()
                     param_symbols2 = existing_symbol.its_table.get_param_signature()
                     if param_symbols1 == param_symbols2:
-                        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, 0,
+                        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth,
                                         its_table=current_symbol_table,
                                         is_prototype=False)
                         global_symbol_table.add_symbol(symbol)
@@ -305,7 +304,7 @@ def p_param_list(p):
         for param_index, param in enumerate(param_meta_data_list):
             _id, _type, deref_depth = param
             if not current_symbol_table.symbol_exists(_id):
-                symbol = Symbol(_id, _type, Symbol.PARAM_SCOPE, deref_depth, 4, param_index=param_index)
+                symbol = Symbol(_id, _type, Symbol.PARAM_SCOPE, deref_depth,  param_index=param_index)
                 param_index += 1
                 current_symbol_table.add_symbol(symbol)
             else:
@@ -523,7 +522,7 @@ def p_statement(p):
         for term in dlist:
             _id, deref_depth = term
             if not current_symbol_table.symbol_exists(_id):
-                symbol = Symbol(_id, _type, Symbol.LOCAL_SCOPE, deref_depth, 4)
+                symbol = Symbol(_id, _type, Symbol.LOCAL_SCOPE, deref_depth)
                 current_symbol_table.add_symbol(symbol)
             else:
                 panic('Symbol already declared %s' % _id)

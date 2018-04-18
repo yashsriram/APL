@@ -19,8 +19,8 @@ def procedure_table_text_repr(symbol_table):
             return_type_txt = symbol.type + '*' * symbol.deref_depth
             params_txt_list = []
             ordered_params = symbol.its_table.get_params_in_order()
-            for ordered_param in ordered_params:
-                _id, _type, deref_depth = ordered_param
+            for param in ordered_params:
+                _id, _type, deref_depth = param.id, param.type, param.deref_depth
                 params_txt_list.append('%s %s' % (_type, '*' * deref_depth + _id))
             params_txt = ', '.join(params_txt_list)
             proc_txt = '%s\t|\t%s\t\t|\t%s\n' % (func_id, return_type_txt, params_txt)
@@ -48,19 +48,32 @@ class SymbolTable:
     def __init__(self, _type=None, deref_depth=None):
         self.type = _type
         self.deref_depth = deref_depth
-        self.cumulative_width = 0
+        self.local_sym_cumulative_width = 0
         self.symbols = {}
 
     def symbol_exists(self, _id):
         return _id in self.symbols.keys()
 
     def add_symbol(self, symbol):
-        symbol.offset = self.cumulative_width
         self.symbols[symbol.id] = symbol
-        self.cumulative_width += symbol.width
+        if symbol.is_local():
+            self.local_sym_cumulative_width += symbol.width
 
     def get_symbol(self, _id):
         return self.symbols[_id]
+
+    def reset_offsets(self):
+        local_symbols = self.get_sorted_local_symbols()
+        param_symbols = self.get_params_in_order()
+        offset = 0
+        for sym in local_symbols:
+            offset += sym.width
+            sym.offset = offset
+
+        offset = self.local_sym_cumulative_width + 8
+        for sym in param_symbols:
+            offset += sym.width
+            sym.offset = offset
 
     def get_non_func_symbol(self, _id):
         try:
@@ -79,7 +92,7 @@ class SymbolTable:
         """
         param_symbols = []
         for sym in self.symbols.values():
-            if sym.param_index is not None:
+            if sym.is_param():
                 param_symbols.append(sym)
         param_symbols.sort(key=lambda symbol: symbol.param_index)
         param_req_symbols = []
@@ -93,13 +106,21 @@ class SymbolTable:
         """
         param_symbols = []
         for sym in self.symbols.values():
-            if sym.param_index is not None:
+            if sym.is_param():
                 param_symbols.append(sym)
         param_symbols.sort(key=lambda symbol: symbol.param_index)
-        param_req_symbols = []
-        for sym in param_symbols:
-            param_req_symbols.append((sym.id, sym.type, sym.deref_depth))
-        return param_req_symbols
+        return param_symbols
+
+    def get_sorted_local_symbols(self):
+        local_symbol_tuple_list = []
+        for _id, sym in self.symbols.items():
+            if sym.is_local():
+                local_symbol_tuple_list.append((_id, sym))
+        local_symbol_tuple_list.sort(key=lambda p: p[0])
+        sorted_local_symbols = []
+        for local_sym in local_symbol_tuple_list:
+            sorted_local_symbols.append(local_sym[1])
+        return sorted_local_symbols
 
     def variable_table_text_repr(self, name):
         ans = ''
@@ -131,22 +152,37 @@ class Symbol:
     LOCAL_SCOPE = 'local_scope'
     PARAM_SCOPE = 'param_scope'
 
-    def __init__(self, _id, _type, scope, deref_depth, width, offset=None, its_table=None, param_index=None,
+    def __init__(self, _id, _type, scope, deref_depth, offset=None, its_table=None, param_index=None,
                  is_prototype=False):
         self.id = _id
         self.type = _type
         self.scope = scope
         self.deref_depth = deref_depth
-        self.width = width
         self.offset = offset
         # Used when symbol is a function
         self.its_table = its_table
         self.is_prototype = is_prototype
         # Used when symbol is a param
         self.param_index = param_index
+        # set width automatically
+        if its_table is not None:
+            # function
+            self.width = 0
+        elif _type == 'float' and deref_depth == 0:
+            # float literal
+            self.width = 8
+        else:
+            # int literal or pointer
+            self.width = 4
 
     def is_function(self):
         return self.its_table is not None
+
+    def is_param(self):
+        return self.param_index is not None
+
+    def is_local(self):
+        return not self.is_function() and not self.is_param()
 
     def __repr__(self):
         return '%s %s %s %d %d %d' % (self.id, self.type, self.scope, self.deref_depth, self.width, self.offset)
