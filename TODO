@@ -13,7 +13,9 @@
 // separate rule for void without paramlist and return
 // does float lit contain f at end
 // test
-alphabetical offsets
-param access
-prologue, epilogue
-access globals from asm code
+// alphabetical offsets
+// param access
+// prologue, epilogue
+// access globals from asm code
+float diff registers
+function call

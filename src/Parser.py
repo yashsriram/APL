@@ -140,7 +140,7 @@ def p_initial_production(p):
             fn_name = child.value
             fn_symbol = global_symbol_table.get_symbol(fn_name)
             output_file.write(cfg.tree_text_repr())
-            print(generate_assembly_code_for_fn(cfg, fn_symbol.its_table, fn_name))
+            print(generate_assembly_code_for_fn(cfg, fn_symbol.its_child_table, global_symbol_table, fn_name=fn_name))
 
     # sym
     with open(input_file_name + '.sym', 'w') as output_file:
@@ -194,7 +194,8 @@ def p_function_prototype(p):
     current_symbol_table = symbol_table_stack[-1]
     type_node, id_node, _id, _type, deref_depth = p[1]
     if not global_symbol_table.symbol_exists(_id):
-        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, its_table=current_symbol_table, is_prototype=True)
+        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, its_child_table=current_symbol_table,
+                        is_prototype=True)
         global_symbol_table.add_symbol(symbol)
         symbol_table_stack.pop()
     else:
@@ -220,7 +221,7 @@ def p_function_implementation(p):
             panic('main function cannot have return statement')
     if not global_symbol_table.symbol_exists(_id):
         # New function implementation
-        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, its_table=current_symbol_table,
+        symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth, its_child_table=current_symbol_table,
                         is_prototype=False)
         global_symbol_table.add_symbol(symbol)
         symbol_table_stack.pop()
@@ -233,10 +234,10 @@ def p_function_implementation(p):
             if existing_symbol.is_prototype:
                 if existing_symbol.type == _type and existing_symbol.deref_depth == deref_depth:
                     param_symbols1 = current_symbol_table.get_param_signature()
-                    param_symbols2 = existing_symbol.its_table.get_param_signature()
+                    param_symbols2 = existing_symbol.its_child_table.get_param_signature()
                     if param_symbols1 == param_symbols2:
                         symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth,
-                                        its_table=current_symbol_table,
+                                        its_child_table=current_symbol_table,
                                         is_prototype=False)
                         global_symbol_table.add_symbol(symbol)
                         symbol_table_stack.pop()
@@ -304,7 +305,7 @@ def p_param_list(p):
         for param_index, param in enumerate(param_meta_data_list):
             _id, _type, deref_depth = param
             if not current_symbol_table.symbol_exists(_id):
-                symbol = Symbol(_id, _type, Symbol.PARAM_SCOPE, deref_depth,  param_index=param_index)
+                symbol = Symbol(_id, _type, Symbol.PARAM_SCOPE, deref_depth, param_index=param_index)
                 param_index += 1
                 current_symbol_table.add_symbol(symbol)
             else:
@@ -392,6 +393,7 @@ def p_compound_condition(p):
     compound_condition : compound_condition LOGICAL_AND compound_condition
                        | compound_condition LOGICAL_OR compound_condition
                        | L_PAREN compound_condition R_PAREN
+                       | EXCLAMATION L_PAREN compound_condition R_PAREN
                        | EXCLAMATION condition
                        | condition
     """
@@ -411,6 +413,10 @@ def p_compound_condition(p):
     elif len(p) == 3:
         node = ASTNode('NOT', '!', p[2][0].is_constant)
         node.append_child(p[2][0])
+        p[0] = node
+    elif len(p) == 5:
+        node = ASTNode('NOT', '!', p[3].is_constant)
+        node.append_child(p[3])
         p[0] = node
     elif len(p) == 2:
         p[0] = p[1][0]
@@ -660,7 +666,7 @@ def p_func_expr(p):
         if global_symbol_table.symbol_exists(_id):
             func_symbol = global_symbol_table.get_symbol(_id)
             if func_symbol.is_function():
-                param_list = func_symbol.its_table.get_param_signature()
+                param_list = func_symbol.its_child_table.get_param_signature()
                 if param_list != arg_types:
                     panic('Function %s arguments are mismatched' % _id)
             else:

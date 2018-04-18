@@ -18,7 +18,7 @@ def procedure_table_text_repr(symbol_table):
         if symbol.is_function():
             return_type_txt = symbol.type + '*' * symbol.deref_depth
             params_txt_list = []
-            ordered_params = symbol.its_table.get_params_in_order()
+            ordered_params = symbol.its_child_table.get_params_in_order()
             for param in ordered_params:
                 _id, _type, deref_depth = param.id, param.type, param.deref_depth
                 params_txt_list.append('%s %s' % (_type, '*' * deref_depth + _id))
@@ -128,7 +128,7 @@ class SymbolTable:
         func_list = []
         for _id, symbol in self.symbols.items():
             if symbol.is_function():
-                txt = symbol.its_table.variable_table_text_repr(symbol.id)
+                txt = symbol.its_child_table.variable_table_text_repr(symbol.id)
                 func_list.append((symbol.id, txt))
             else:
                 txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (
@@ -152,7 +152,7 @@ class Symbol:
     LOCAL_SCOPE = 'local_scope'
     PARAM_SCOPE = 'param_scope'
 
-    def __init__(self, _id, _type, scope, deref_depth, offset=None, its_table=None, param_index=None,
+    def __init__(self, _id, _type, scope, deref_depth, offset=None, its_child_table=None, param_index=None,
                  is_prototype=False):
         self.id = _id
         self.type = _type
@@ -160,12 +160,12 @@ class Symbol:
         self.deref_depth = deref_depth
         self.offset = offset
         # Used when symbol is a function
-        self.its_table = its_table
+        self.its_child_table = its_child_table
         self.is_prototype = is_prototype
         # Used when symbol is a param
         self.param_index = param_index
         # set width automatically
-        if its_table is not None:
+        if its_child_table is not None:
             # function
             self.width = 0
         elif _type == 'float' and deref_depth == 0:
@@ -176,7 +176,7 @@ class Symbol:
             self.width = 4
 
     def is_function(self):
-        return self.its_table is not None
+        return self.its_child_table is not None
 
     def is_param(self):
         return self.param_index is not None
