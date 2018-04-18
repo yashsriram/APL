@@ -19,3 +19,4 @@
 // access globals from asm code
 float diff registers
 function call
+move bug resolve

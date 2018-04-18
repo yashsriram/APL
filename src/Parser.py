@@ -132,15 +132,19 @@ def p_initial_production(p):
         for child in code_node.children:
             output_file.write(child.tree_text_repr())
 
-    # cfg, asm code
-    print(generate_assembly_code_for_globals(global_symbol_table))
+    # cfg, asm
+    asm = generate_assembly_code_for_globals(global_symbol_table)
     with open(input_file_name + '.cfg', 'w') as output_file:
         for child in code_node.children:
             cfg = generate_cfg(child)
             fn_name = child.value
             fn_symbol = global_symbol_table.get_symbol(fn_name)
             output_file.write(cfg.tree_text_repr())
-            print(generate_assembly_code_for_fn(cfg, fn_symbol.its_child_table, global_symbol_table, fn_name=fn_name))
+            asm += generate_assembly_code_for_fn(cfg, fn_symbol.its_child_table, global_symbol_table, fn_name=fn_name)
+
+    # asm
+    with open(input_file_name + '.s', 'w') as output_file:
+        output_file.write('\n' + asm)
 
     # sym
     with open(input_file_name + '.sym', 'w') as output_file:

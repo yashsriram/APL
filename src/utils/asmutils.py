@@ -250,7 +250,7 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, global_symbol_table, fn
             free_register(return_index)
         else:
             txt += '\t'
-            txt += 'j epilogue\n'
+            txt += 'j epilogue_%s\n' % fn_name
 
     elif cfgnode.type == 'FUNCTION_BLOCK':
         symbol_table.reset_offsets()
