@@ -1,5 +1,6 @@
 registers_available = [1, 1, 1, 1, 1, 1, 1, 1]
-
+float_registers_available = [1, 1, 1, 1, 1, 1, 1, 1]
+label = 0
 
 def get_available_register():
     global registers_available
@@ -13,168 +14,358 @@ def free_register(index):
     registers_available[index] = 1
 
 
-def generate_assembly_code_for_binary_op(operator, op1, op2):
-    cur_index = get_available_register()
+def get_available_float_register():
+    global float_registers_available
+    index = float_registers_available.index(1)
+    float_registers_available[index] = 0
+    return index
+
+
+def free_float_register(index):
+    global float_registers_available
+    float_registers_available[index] = 1
+
+def get_next_label():
+    global label
+    ans = label
+    label += 1
+    return ans
+
+
+
+def generate_assembly_code_for_binary_op(operator, op1, op2, op_type):
     assembly_code = ''
+    ret_type = None
     if operator == '+':
         assembly_code += '\t'
-        assembly_code += 'add $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
-        free_register(op1)
-        free_register(op2)
+        if op_type == 'int':
+            cur_index = get_available_register()
+            assembly_code += 'add $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            cur_index = get_available_float_register()
+            assembly_code += 'add.s $f%d, $f%d, $f%d\n' % (10 + 2*cur_index, 10 + 2*op1, 10 + 2* op2)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = op_type
     elif operator == '-':
         assembly_code += '\t'
-        assembly_code += 'sub $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
-        free_register(op1)
-        free_register(op2)
+        if op_type == 'int':
+            cur_index = get_available_register()
+            assembly_code += 'sub $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            cur_index = get_available_float_register()
+            assembly_code += 'sub.s $f%d, $f%d, $f%d\n' % (10 + 2*cur_index, 10 + 2*op1, 10 + 2* op2)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = op_type
     elif operator == '*':
         assembly_code += '\t'
-        assembly_code += 'mul $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
-        free_register(op1)
-        free_register(op2)
+        if op_type == 'int':
+            cur_index = get_available_register()
+            assembly_code += 'mul $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            cur_index = get_available_float_register()
+            assembly_code += 'mul.s $f%d, $f%d, $f%d\n' % (10 + 2*cur_index, 10 + 2*op1, 10 + 2* op2)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = op_type
     elif operator == '/':
         assembly_code += '\t'
-        assembly_code += 'div $s%d, $s%d\n\tmflo $s%d\n' % (op1, op2, cur_index)
-        free_register(op1)
-        free_register(op2)
+        if op_type == 'int':
+            cur_index = get_available_register()
+            assembly_code += 'div $s%d, $s%d\n\tmflo $s%d\n' % (op1, op2, cur_index)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            cur_index = get_available_float_register()
+            assembly_code += 'div.s $f%d, $f%d, $f%d\n' % (10 + 2*cur_index, 10 + 2*op1, 10 + 2* op2)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = op_type
     elif operator == '==':
         assembly_code += '\t'
-        assembly_code += 'seq $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
-        free_register(op1)
-        free_register(op2)
+        cur_index = get_available_register()
+        if op_type == 'int':
+            assembly_code += 'seq $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            assembly_code += 'c.eq.s $f%d, $f%d\n' %(10+2*op1,10+2*op2)
+            label_val = get_next_label()
+            assembly_code += '\tbc1f L_CondFalse_%d\n' %(label_val)
+            assembly_code += '\tli $s%d, 1\n' % (cur_index)
+            assembly_code += '\tj L_CondEnd_%d\n' %(label_val)
+            assembly_code += 'L_CondFalse_%d:\n' %(label_val)
+            assembly_code += '\tli $s%d, 0\n' % (cur_index)
+            assembly_code += 'L_CondEnd_%d:\n' %(label_val)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = 'int'
     elif operator == '!=':
         assembly_code += '\t'
-        assembly_code += 'sne $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
-        free_register(op1)
-        free_register(op2)
+        cur_index = get_available_register()
+        if op_type == 'int':
+            assembly_code += 'sne $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            assembly_code += 'c.eq.s $f%d, $f%d\n' %(10+2*op1,10+2*op2)
+            label_val = get_next_label()
+            assembly_code += '\tbc1f L_CondTrue_%d\n' %(label_val)
+            assembly_code += '\tli $s%d, 0\n' % (cur_index)
+            assembly_code += '\tj L_CondEnd_%d\n' %(label_val)
+            assembly_code += 'L_CondTrue_%d:\n' %(label_val)
+            assembly_code += '\tli $s%d, 1\n' % (cur_index)
+            assembly_code += 'L_CondEnd_%d:\n' %(label_val)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = 'int'
     elif operator == '<':
         assembly_code += '\t'
-        assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
-        free_register(op1)
-        free_register(op2)
+        cur_index = get_available_register()
+        if op_type == 'int':
+            assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            assembly_code += 'c.lt.s $f%d, $f%d\n' %(10+2*op1,10+2*op2)
+            label_val = get_next_label()
+            assembly_code += '\tbc1f L_CondFalse_%d\n' %(label_val)
+            assembly_code += '\tli $s%d, 1\n' % (cur_index)
+            assembly_code += '\tj L_CondEnd_%d\n' %(label_val)
+            assembly_code += 'L_CondFalse_%d:\n' %(label_val)
+            assembly_code += '\tli $s%d, 0\n' % (cur_index)
+            assembly_code += 'L_CondEnd_%d:\n' %(label_val)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = 'int'
     elif operator == '>':
         assembly_code += '\t'
-        assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op2, op1)
-        free_register(op1)
-        free_register(op2)
+        cur_index = get_available_register()
+        if op_type == 'int':
+            assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op2, op1)
+            free_register(op1)
+            free_register(op2)
+        elif op_type == 'float':
+            assembly_code += 'c.lt.s $f%d, $f%d\n' %(10+2*op2,10+2*op1)
+            label_val = get_next_label()
+            assembly_code += '\tbc1f L_CondFalse_%d\n' %(label_val)
+            assembly_code += '\tli $s%d, 1\n' % (cur_index)
+            assembly_code += '\tj L_CondEnd_%d\n' %(label_val)
+            assembly_code += 'L_CondFalse_%d:\n' %(label_val)
+            assembly_code += '\tli $s%d, 0\n' % (cur_index)
+            assembly_code += 'L_CondEnd_%d:\n' %(label_val)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = 'int'
     elif operator == '<=':
         assembly_code += '\t'
-        assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op2, op1)
-        free_register(op1)
-        free_register(op2)
-        temp_index = get_available_register()
-        assembly_code += '\t'
-        assembly_code += 'not $s%d, $s%d\n' % (temp_index, cur_index)
-        free_register(cur_index)
-        cur_index = temp_index
+        cur_index = get_available_register()
+        if op_type == 'int':
+            assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op2, op1)
+            free_register(op1)
+            free_register(op2)
+            temp_index = get_available_register()
+            assembly_code += '\t'
+            assembly_code += 'not $s%d, $s%d\n' % (temp_index, cur_index)
+            free_register(cur_index)
+            cur_index = temp_index
+        elif op_type == 'float':
+            assembly_code += 'c.le.s $f%d, $f%d\n' %(10+2*op1,10+2*op2)
+            label_val = get_next_label()
+            assembly_code += '\tbc1f L_CondFalse_%d\n' %(label_val)
+            assembly_code += '\tli $s%d, 1\n' % (cur_index)
+            assembly_code += '\tj L_CondEnd_%d\n' %(label_val)
+            assembly_code += 'L_CondFalse_%d:\n' %(label_val)
+            assembly_code += '\tli $s%d, 0\n' % (cur_index)
+            assembly_code += 'L_CondEnd_%d:\n' %(label_val)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = 'int'
     elif operator == '>=':
         assembly_code += '\t'
-        assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
-        free_register(op1)
-        free_register(op2)
-        temp_index = get_available_register()
-        assembly_code += '\t'
-        assembly_code += 'not $s%d, $s%d\n' % (temp_index, cur_index)
-        free_register(cur_index)
-        cur_index = temp_index
+        cur_index = get_available_register()
+        if op_type == 'int':
+            assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            free_register(op1)
+            free_register(op2)
+            temp_index = get_available_register()
+            assembly_code += '\t'
+            assembly_code += 'not $s%d, $s%d\n' % (temp_index, cur_index)
+            free_register(cur_index)
+            cur_index = temp_index
+        elif op_type == 'float':
+            assembly_code += 'c.le.s $f%d, $f%d\n' %(10+2*op2,10+2*op1)
+            label_val = get_next_label()
+            assembly_code += '\tbc1f L_CondFalse_%d\n' %(label_val)
+            assembly_code += '\tli $s%d, 1\n' % (cur_index)
+            assembly_code += '\tj L_CondEnd_%d\n' %(label_val)
+            assembly_code += 'L_CondFalse_%d:\n' %(label_val)
+            assembly_code += '\tli $s%d, 0\n' % (cur_index)
+            assembly_code += 'L_CondEnd_%d:\n' %(label_val)
+            free_float_register(op1)
+            free_float_register(op2)
+        ret_type = 'int'
     elif operator == '||':
+        cur_index = get_available_register()
         assembly_code += '\t'
         assembly_code += 'or $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
         free_register(op1)
         free_register(op2)
+        ret_type = 'int'
     elif operator == '&&':
+        cur_index = get_available_register()
         assembly_code += '\t'
         assembly_code += 'and $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
         free_register(op1)
         free_register(op2)
-    this_index = get_available_register()
-    assembly_code += '\t'
-    assembly_code += 'move $s%d, $s%d\n' % (this_index, cur_index)
-    free_register(cur_index)
-    return this_index, assembly_code
+        ret_type = 'int'
+    this_index = None
+    if ret_type == 'int':
+        this_index = get_available_register()
+        assembly_code += '\t'
+        assembly_code += 'move $s%d, $s%d\n' % (this_index, cur_index)
+        free_register(cur_index)
+    elif ret_type == 'float':
+        this_index = get_available_float_register()
+        assembly_code += '\t'
+        assembly_code += 'mov.s $f%d, $f%d\n' % (10 + 2*this_index, 10 + 2*cur_index)
+        free_float_register(cur_index)
+    return this_index, assembly_code, ret_type
 
 
-def generate_assembly_code_for_unary_op(operator, op1):
-    cur_index = get_available_register()
+def generate_assembly_code_for_unary_op(operator, op1, op_type):
     assembly_code = ''
+    ret_type = None
     if operator == '-':
         assembly_code += '\t'
-        assembly_code += 'negu $s%d, $s%d\n' % (cur_index, op1)
+        if op_type == 'int':
+            cur_index = get_available_register()
+            assembly_code += 'negu $s%d, $s%d\n' % (cur_index, op1)
+            free_register(op1)
+        elif op_type == 'float':
+            cur_index = get_available_float_register()
+            assembly_code += 'neg.s $f%d, $f%d\n' % (10 + 2*cur_index, 10 + 2*op1)
+            free_float_register(op1)
+        ret_type = op_type
     elif operator == '!':
+        cur_index = get_available_register()
         assembly_code += '\t'
         assembly_code += 'not $s%d, $s%d\n' % (cur_index, op1)
-    free_register(op1)
-    this_index = get_available_register()
-    assembly_code += '\t'
-    assembly_code += 'move $s%d, $s%d\n' % (this_index, cur_index)
-    free_register(cur_index)
-    return this_index, assembly_code
+        free_register(op1)
+        ret_type = 'int'
+    this_index = None
+    if ret_type == 'int':
+        this_index = get_available_register()
+        assembly_code += '\t'
+        assembly_code += 'move $s%d, $s%d\n' % (this_index, cur_index)
+        free_register(cur_index)
+    elif ret_type == 'float':
+        this_index = get_available_float_register()
+        assembly_code += '\t'
+        assembly_code += 'mov.s $f%d, $f%d\n' % (10 + 2*this_index, 10 + 2*cur_index)
+        free_float_register(cur_index)
+    return this_index, assembly_code, ret_type
 
 
 def generate_register_for_rhs_term(astnode, symbol_table, global_symbol_table):
     assembly_code = ''
     if astnode.type == 'CONST':
-        index = get_available_register()
-        assembly_code += '\t'
-        assembly_code += 'li $s%d, %s\n' % (index, astnode.value)
-        return index, assembly_code
+        const_val = astnode.value
+        if type(const_val) is int:
+            index = get_available_register()
+            assembly_code += '\t'
+            assembly_code += 'li $s%d, %s\n' % (index, const_val)
+            return index, assembly_code, 'int', 0
+        elif type(const_val) is float:
+            index = get_available_float_register()
+            assembly_code += '\t'
+            assembly_code += 'li.s $f%d, %s\n' % (10+2*index, const_val)
+            return index, assembly_code, 'float', 0
     elif astnode.type == 'VAR':
-        index = get_available_register()
         _id = astnode.value
         if symbol_table.symbol_exists(_id):
-            offset = symbol_table.get_symbol(_id).offset
-            assembly_code += '\t'
-            assembly_code += 'lw $s%d, %d($sp)\n' % (index, offset)
-            return index, assembly_code
+            symbol = symbol_table.get_symbol(_id)
+            offset = symbol.offset
+            if symbol.type == 'float' and symbol.deref_depth == 0:
+                index = get_available_float_register()
+                assembly_code += '\t'
+                assembly_code += 'l.s $f%d, %d($sp)\n' % (10+2*index, offset)
+            else:
+                index = get_available_register()
+                assembly_code += '\t'
+                assembly_code += 'lw $s%d, %d($sp)\n' % (index, offset)
+            return index, assembly_code, symbol.type, symbol.deref_depth
         elif global_symbol_table.symbol_exists(_id):
-            assembly_code += '\t'
-            assembly_code += 'lw $s%d, global_%s\n' % (index, _id)
-            return index, assembly_code
+            symbol = global_symbol_table.get_symbol(_id)
+            if symbol.type == 'float' and symbol.deref_depth == 0:
+                index = get_available_float_register()
+                assembly_code += '\t'
+                assembly_code += 'l.s $f%d, global_%s\n' % (10+2*index, _id)
+            else:
+                index = get_available_register()
+                assembly_code += '\t'
+                assembly_code += 'lw $s%d, global_%s\n' % (index, _id)
+            return index, assembly_code, symbol.type, symbol.deref_depth
     elif astnode.type == 'DEREF':
-        child_index, child_assembly_code = generate_register_for_rhs_term(astnode.children[0], symbol_table,
+        child_index, child_assembly_code, child_type, child_deref_depth = generate_register_for_rhs_term(astnode.children[0], symbol_table,
                                                                           global_symbol_table)
-        index = get_available_register()
-        assembly_code += '\t'
-        assembly_code += 'lw $s%d, 0($s%d)\n' % (index, child_index)
+        if child_type == 'float' and child_deref_depth == 1:
+            index = get_available_float_register()
+            assembly_code += '\t'
+            assembly_code += 'l.s $f%d, 0($s%d)\n' % (10+2*index, child_index)
+        else:
+            index = get_available_register()
+            assembly_code += '\t'
+            assembly_code += 'lw $s%d, 0($s%d)\n' % (index, child_index)
         free_register(child_index)
-        return index, child_assembly_code + assembly_code
+        return index, child_assembly_code + assembly_code, child_type, child_deref_depth - 1
     elif astnode.type == 'ADDR':
         index = get_available_register()
         _id = astnode.children[0].value
         if symbol_table.symbol_exists(_id):
-            offset = symbol_table.get_symbol(_id).offset
+            symbol = symbol_table.get_symbol(_id)
+            offset = symbol.offset
             assembly_code += '\t'
             assembly_code += 'addi $s%d, $sp, %d\n' % (index, offset)
-            return index, assembly_code
+            return index, assembly_code, symbol.type, symbol.deref_depth + 1
         elif global_symbol_table.symbol_exists(_id):
+            symbol = global_symbol_table.get_symbol(_id)
             assembly_code += '\t'
             assembly_code += 'la $s%d, global_%s\n' % (index, _id)
-            return index, assembly_code
+            return index, assembly_code, symbol.type, symbol.deref_depth + 1
 
 
 def generate_register_for_lhs_term(astnode, symbol_table, global_symbol_table):
     if astnode.type == 'DEREF':
-        index, assembly_code = generate_register_for_rhs_term(astnode.children[0], symbol_table, global_symbol_table)
-        return index, assembly_code
+        index, assembly_code , _type, deref_depth= generate_register_for_rhs_term(astnode.children[0], symbol_table, global_symbol_table)
+        return index, assembly_code, _type, deref_depth - 1
 
 
 def generate_assembly_code_for_expression(astnode, symbol_table, global_symbol_table):
     if astnode.is_term():
-        index, assembly_code = generate_register_for_rhs_term(astnode, symbol_table, global_symbol_table)
-        return index, assembly_code
+        index, assembly_code, _type, deref_depth = generate_register_for_rhs_term(astnode, symbol_table, global_symbol_table)
+        return index, assembly_code, _type, deref_depth
     else:
         if len(astnode.children) == 2:
             lhs = astnode.children[0]
             rhs = astnode.children[1]
-            lhs_index, lhs_assembly_code = generate_assembly_code_for_expression(lhs, symbol_table, global_symbol_table)
-            rhs_index, rhs_assembly_code = generate_assembly_code_for_expression(rhs, symbol_table, global_symbol_table)
-            this_index, this_assembly_code = generate_assembly_code_for_binary_op(astnode.value, lhs_index, rhs_index)
-            return this_index, lhs_assembly_code + rhs_assembly_code + this_assembly_code
+            lhs_index, lhs_assembly_code, lhs_type, lhs_deref_depth  = generate_assembly_code_for_expression(lhs, symbol_table, global_symbol_table)
+            rhs_index, rhs_assembly_code, rhs_type, rhs_deref_depth = generate_assembly_code_for_expression(rhs, symbol_table, global_symbol_table)
+            this_index, this_assembly_code, this_type = generate_assembly_code_for_binary_op(astnode.value, lhs_index, rhs_index, lhs_type)
+            return this_index, lhs_assembly_code + rhs_assembly_code + this_assembly_code, this_type, 0
         elif len(astnode.children) == 1:
             child = astnode.children[0]
-            child_index, child_assembly_code = generate_assembly_code_for_expression(child, symbol_table,
+            child_index, child_assembly_code, child_type, child_deref_depth = generate_assembly_code_for_expression(child, symbol_table,
                                                                                      global_symbol_table)
-            this_index, this_assembly_code = generate_assembly_code_for_unary_op(astnode.value, child_index)
-            return this_index, child_assembly_code + this_assembly_code
+            this_index, this_assembly_code, this_type = generate_assembly_code_for_unary_op(astnode.value, child_index, child_type)
+            return this_index, child_assembly_code + this_assembly_code , this_type, 0
 
 
 def generate_assembly_code_for_assignment(astnode, symbol_table, global_symbol_table):
@@ -182,26 +373,40 @@ def generate_assembly_code_for_assignment(astnode, symbol_table, global_symbol_t
         lhs = astnode.children[0]
         rhs = astnode.children[1]
         this_assembly_code = ''
-        rhs_index, rhs_assembly_code = generate_assembly_code_for_expression(rhs, symbol_table, global_symbol_table)
+        rhs_index, rhs_assembly_code, rhs_type, rhs_deref_depth = generate_assembly_code_for_expression(rhs, symbol_table, global_symbol_table)
         if lhs.type == 'DEREF':
-            lhs_index, lhs_assembly_code = generate_register_for_lhs_term(lhs, symbol_table, global_symbol_table)
-            this_assembly_code += '\t'
-            this_assembly_code += 'sw $s%d, 0($s%d)\n' % (rhs_index, lhs_index)
-            free_register(lhs_index)
-            free_register(rhs_index)
+            lhs_index, lhs_assembly_code, lhs_type, lhs_deref_depth = generate_register_for_lhs_term(lhs, symbol_table, global_symbol_table)
+            if rhs_type == 'float' and rhs_deref_depth == 0:
+                this_assembly_code += '\t'
+                this_assembly_code += 's.s $f%d, 0($s%d)\n' % (10 + 2*rhs_index, lhs_index)
+                free_register(lhs_index)
+                free_float_register(rhs_index)
+            else:
+                this_assembly_code += '\t'
+                this_assembly_code += 'sw $s%d, 0($s%d)\n' % (rhs_index, lhs_index)
+                free_register(lhs_index)
+                free_register(rhs_index)
             return rhs_assembly_code + lhs_assembly_code + this_assembly_code
         elif lhs.type == 'VAR':
             _id = lhs.value
             if symbol_table.symbol_exists(_id):
                 offset = symbol_table.get_symbol(_id).offset
                 this_assembly_code += '\t'
-                this_assembly_code += 'sw $s%d, %d($sp)\n' % (rhs_index, offset)
-                free_register(rhs_index)
+                if rhs_type == 'float' and rhs_deref_depth == 0:
+                    this_assembly_code += 's.s $f%d, %d($sp)\n' % (10 + 2*rhs_index, offset)
+                    free_float_register(rhs_index)
+                else:
+                    this_assembly_code += 'sw $s%d, %d($sp)\n' % (rhs_index, offset)
+                    free_register(rhs_index)
                 return rhs_assembly_code + this_assembly_code
             elif global_symbol_table.symbol_exists(_id):
                 this_assembly_code += '\t'
-                this_assembly_code += 'sw $s%d, global_%s\n' % (rhs_index, _id)
-                free_register(rhs_index)
+                if rhs_type == 'float' and rhs_deref_depth == 0:
+                    this_assembly_code += 's.s $f%d, global_%s\n' % (10 + 2*rhs_index, _id)
+                    free_float_register(rhs_index)
+                else:
+                    this_assembly_code += 'sw $s%d, global_%s\n' % (rhs_index, _id)
+                    free_register(rhs_index)
                 return rhs_assembly_code + this_assembly_code
 
     else:
@@ -224,7 +429,7 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, global_symbol_table, fn
 
     elif cfgnode.type == 'CONDITION_BLOCK':
         txt += 'label%d:\n' % cfgnode.block_number
-        cond_index, cond_assembly_code = generate_assembly_code_for_expression(cfgnode.value, symbol_table,
+        cond_index, cond_assembly_code, cond_type, cond_deref_depth = generate_assembly_code_for_expression(cfgnode.value, symbol_table,
                                                                                global_symbol_table)
         goto_true, goto_false = cfgnode.goto_block_number()
         txt += cond_assembly_code
@@ -240,7 +445,7 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, global_symbol_table, fn
         return_node_list = return_node.children
         if len(return_node_list) == 1:
             return_node_val = return_node_list[0]
-            return_index, return_assembly_code = generate_assembly_code_for_expression(return_node_val, symbol_table,
+            return_index, return_assembly_code, return_type, return_deref_depth = generate_assembly_code_for_expression(return_node_val, symbol_table,
                                                                                        global_symbol_table)
             txt += return_assembly_code
             txt += '\t'
