@@ -3,8 +3,8 @@ import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
 from utils.cfgutils import generate_cfg
-from utils.assemblyutils import generate_assembly_code_for_fn, generate_assembly_code_for_globals
-from utils.symbolutils import access_variable_symbol, SymbolTable, Symbol, procedure_table_text_repr, \
+from utils.asmutils import generate_assembly_code_for_fn, generate_assembly_code_for_globals
+from utils.symutils import access_variable_symbol, SymbolTable, Symbol, procedure_table_text_repr, \
     variable_table_text_repr
 
 ########################################################################################
