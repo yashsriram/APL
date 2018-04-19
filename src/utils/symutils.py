@@ -76,13 +76,13 @@ class SymbolTable:
             sym.offset = offset
 
     def get_non_func_symbol(self, _id):
-        try:
+        if _id in self.symbols.keys():
             symbol = self.symbols[_id]
             if not symbol.is_function():
                 return symbol
             else:
                 return False
-        except KeyError:
+        else:
             return False
 
     def get_param_signature(self):

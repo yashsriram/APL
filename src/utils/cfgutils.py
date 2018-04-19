@@ -217,6 +217,8 @@ class CFGNode:
     IF_BLOCK & WHILE_BLOCK have block number of its first child which definitely exists
     ASGN_BLOCK & CONDITION_BLOCK have unique block numbers
     RETURN_BLOCK has biggest block number
+    ASGN_BLOCK has two types of ast node children. assignment or function call. assignment in itself has lhs and rhs,
+        where rhs can be expression or function call
 
     ASGN_BLOCK can have only BODY_BLOCK as parent
     BODY_BLOCK can have only IF_BLOCK or WHILE_BLOCK OR FUNCTION_BLOCK as parent
@@ -224,7 +226,6 @@ class CFGNode:
     WHILE_BLOCK can have only BODY_BLOCK as parent
     CONDITION_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
     RETURN_BLOCK can have only (root) BODY_BLOCK as parent
-    FUNCTION_CALL can have only ASGN_BLOCK as parent
     """
 
     def __init__(self, _type, value, is_constant=False, parent=None, block_number=None, index=None):
