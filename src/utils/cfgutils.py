@@ -224,6 +224,7 @@ class CFGNode:
     WHILE_BLOCK can have only BODY_BLOCK as parent
     CONDITION_BLOCK can have only IF_BLOCK or WHILE_BLOCK as parent
     RETURN_BLOCK can have only (root) BODY_BLOCK as parent
+    FUNCTION_CALL can have only ASGN_BLOCK as parent
     """
 
     def __init__(self, _type, value, is_constant=False, parent=None, block_number=None, index=None):
