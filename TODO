@@ -19,9 +19,9 @@
 // access globals from asm code
 // float diff registers
 // function call
+// In if(!(a==b)) we are using not instruction to get the final value of the boolean but in MIPS applying not on 1 doesn't give 0, it gives the bitwise not of 1.
+// slt bug
 move bug resolve
 *&a bug check
 rigorous check on float
-slt bug
-In if(!(a==b)) we are using not instruction to get the final value of the boolean but in MIPS applying not on 1 doesn't give 0, it gives the bitwise not of 1.
 s.s vs s.d

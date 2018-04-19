@@ -170,14 +170,9 @@ def generate_assembly_code_for_binary_op(operator, op1, op2, op_type):
         assembly_code += '\t'
         cur_index = get_available_register()
         if op_type == 'int':
-            assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op2, op1)
+            assembly_code += 'sle $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
             free_register(op1)
             free_register(op2)
-            temp_index = get_available_register()
-            assembly_code += '\t'
-            assembly_code += 'xori $s%d, $s%d, 1\n' % (temp_index, cur_index)
-            free_register(cur_index)
-            cur_index = temp_index
         elif op_type == 'float':
             assembly_code += 'c.le.s $f%d, $f%d\n' % (10 + 2 * op1, 10 + 2 * op2)
             label_val = get_next_float_cmp_label()
@@ -194,14 +189,9 @@ def generate_assembly_code_for_binary_op(operator, op1, op2, op_type):
         assembly_code += '\t'
         cur_index = get_available_register()
         if op_type == 'int':
-            assembly_code += 'slt $s%d, $s%d, $s%d\n' % (cur_index, op1, op2)
+            assembly_code += 'sle $s%d, $s%d, $s%d\n' % (cur_index, op2, op1)
             free_register(op1)
             free_register(op2)
-            temp_index = get_available_register()
-            assembly_code += '\t'
-            assembly_code += 'xori $s%d, $s%d, 1\n' % (temp_index, cur_index)
-            free_register(cur_index)
-            cur_index = temp_index
         elif op_type == 'float':
             assembly_code += 'c.le.s $f%d, $f%d\n' % (10 + 2 * op2, 10 + 2 * op1)
             label_val = get_next_float_cmp_label()
@@ -359,41 +349,16 @@ def generate_assembly_code_for_expression(astnode, symbol_table, global_symbol_t
                                                                                   global_symbol_table)
         return index, assembly_code, _type, deref_depth
     elif astnode.is_function_call():
-        # args
-        id_node, arg_list = astnode.children
-        # params
-        func_name = id_node.value
-        func = global_symbol_table.get_symbol(func_name)
-        func_params = func.its_child_table.get_params_in_order()
-        # calculate offsets
-        offsets = []
-        offset = 0
-        for i in range(len(func_params) - 1, -1, -1):
-            offsets = [offset] + offsets
-            offset -= func_params[i].width
-        #
-        assembly_code = '\t# setting up activation record for called function\n'
-        for i, arg in enumerate(arg_list.children):
-            index, arg_assembly_code, _type, deref_depth = generate_assembly_code_for_expression(
-                arg, symbol_table, global_symbol_table)
-            assembly_code += arg_assembly_code
-            if _type == 'float' and deref_depth == 0:
-                assembly_code += '\ts.s $f%d, %d($sp)\n' % (10 + 2 * index, offsets[i])
-                free_float_register(index)
-            else:
-                assembly_code += '\tsw $s%d, %d($sp)\n' % (index, offsets[i])
-                free_register(index)
-        assembly_code += '\tsub $sp, $sp, %d\n' % -offset
-        assembly_code += '\tjal %s # function call\n' % func_name
-        assembly_code += '\tadd $sp, $sp, %d # destroying activation record of called function\n' % -offset
-        if func.type == 'float' and func.deref_depth == 0:
+        assembly_code, func_type, func_deref_depth = generate_assembly_code_for_function_call(astnode, symbol_table,
+                                                                                              global_symbol_table)
+        if func_type == 'float' and func_deref_depth == 0:
             index = get_available_float_register()
             assembly_code += '\tmov.s $f%d, $v1 # using the return value of called function\n' % 10 + (2 * index)
         else:
             index = get_available_register()
             assembly_code += '\tmove $s%d, $v1 # using the return value of called function\n' % index
 
-        return index, assembly_code, func.type, func.deref_depth
+        return index, assembly_code, func_type, func_deref_depth
     else:
         if len(astnode.children) == 2:
             lhs = astnode.children[0]
@@ -466,7 +431,39 @@ def generate_assembly_code_for_assignment(astnode, symbol_table, global_symbol_t
         return ''
 
 
-def generate_assembly_code_for_fn(cfgnode, symbol_table, global_symbol_table, fn_name=None):
+def generate_assembly_code_for_function_call(astnode, symbol_table, global_symbol_table):
+    # args
+    id_node, arg_list = astnode.children
+    # params
+    func_name = id_node.value
+    func = global_symbol_table.get_symbol(func_name)
+    func_params = func.its_child_table.get_params_in_order()
+    # calculate offsets
+    offsets = []
+    offset = 0
+    for i in range(len(func_params) - 1, -1, -1):
+        offsets = [offset] + offsets
+        offset -= func_params[i].width
+    #
+    assembly_code = '\t# setting up activation record for called function\n'
+    for i, arg in enumerate(arg_list.children):
+        index, arg_assembly_code, _type, deref_depth = generate_assembly_code_for_expression(
+            arg, symbol_table, global_symbol_table)
+        assembly_code += arg_assembly_code
+        if _type == 'float' and deref_depth == 0:
+            assembly_code += '\ts.s $f%d, %d($sp)\n' % (10 + 2 * index, offsets[i])
+            free_float_register(index)
+        else:
+            assembly_code += '\tsw $s%d, %d($sp)\n' % (index, offsets[i])
+            free_register(index)
+    assembly_code += '\tsub $sp, $sp, %d\n' % -offset
+    assembly_code += '\tjal %s # function call\n' % func_name
+    assembly_code += '\tadd $sp, $sp, %d # destroying activation record of called function\n' % -offset
+
+    return assembly_code, func.type, func.deref_depth
+
+
+def generate_assembly_code_for_funtion_implementation(cfgnode, symbol_table, global_symbol_table, fn_name=None):
     txt = ''
     if cfgnode.type == 'ASGN_BLOCK':
         txt += 'label%d:\n' % cfgnode.block_number
@@ -475,6 +472,10 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, global_symbol_table, fn
             asgn = child
             if asgn.type == 'ASGN':
                 txt += generate_assembly_code_for_assignment(asgn, symbol_table, global_symbol_table)
+            elif asgn.type == 'FUNCTION_CALL':
+                assembly_code, _, _ = generate_assembly_code_for_function_call(asgn, symbol_table, global_symbol_table)
+                txt += assembly_code
+
         goto = cfgnode.goto_block_number()
         txt += '\t'
         txt += 'j label%d\n' % goto
@@ -522,8 +523,9 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, global_symbol_table, fn
         txt += '\tsub $fp, $sp, 8\t# Update the frame pointer\n'
         txt += '\tsub $sp, $sp, %d\t# Make space for the locals\n' % (symbol_table.local_sym_cumulative_width + 8)
         txt += '# Prologue ends\n'
-        txt += generate_assembly_code_for_fn(body_cfg_node, symbol_table, global_symbol_table)
-        txt += generate_assembly_code_for_fn(return_cfg_node, symbol_table, global_symbol_table, fn_name=fn_name)
+        txt += generate_assembly_code_for_funtion_implementation(body_cfg_node, symbol_table, global_symbol_table)
+        txt += generate_assembly_code_for_funtion_implementation(return_cfg_node, symbol_table, global_symbol_table,
+                                                                 fn_name=fn_name)
         txt += '\n'
         txt += '# Epilogue begins\n'
         txt += 'epilogue_%s:\n' % fn_name
@@ -536,7 +538,7 @@ def generate_assembly_code_for_fn(cfgnode, symbol_table, global_symbol_table, fn
     else:
         txt = ''
         for child in cfgnode.children:
-            txt += generate_assembly_code_for_fn(child, symbol_table, global_symbol_table)
+            txt += generate_assembly_code_for_funtion_implementation(child, symbol_table, global_symbol_table)
 
     return txt
 

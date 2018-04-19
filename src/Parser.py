@@ -3,7 +3,7 @@ import ply.lex as lex
 import ply.yacc as yacc
 from utils.astutils import ASTNode
 from utils.cfgutils import generate_cfg
-from utils.asmutils import generate_assembly_code_for_fn, generate_assembly_code_for_globals
+from utils.asmutils import generate_assembly_code_for_funtion_implementation, generate_assembly_code_for_globals
 from utils.symutils import access_variable_symbol, SymbolTable, Symbol, procedure_table_text_repr, \
     variable_table_text_repr
 
@@ -140,7 +140,7 @@ def p_initial_production(p):
             fn_name = child.value
             fn_symbol = global_symbol_table.get_symbol(fn_name)
             output_file.write(cfg.tree_text_repr())
-            asm += generate_assembly_code_for_fn(cfg, fn_symbol.its_child_table, global_symbol_table, fn_name=fn_name)
+            asm += generate_assembly_code_for_funtion_implementation(cfg, fn_symbol.its_child_table, global_symbol_table, fn_name=fn_name)
 
     # asm
     with open(input_file_name + '.s', 'w') as output_file:
@@ -652,7 +652,7 @@ def p_assignment(p):
 
 
 # -------------------------------- EXPRESSION --------------------------------
-def p_expression_function_call(p):
+def p_expression_func_expr(p):
     """
     expression : func_expr
     """
