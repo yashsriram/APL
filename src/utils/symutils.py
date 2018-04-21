@@ -10,15 +10,23 @@ def access_variable_symbol(_id, global_symbol_table, symbol_table_stack):
     raise KeyError
 
 
-def procedure_table_text_repr(symbol_table):
+def procedure_table_text_repr(symbol_table, prototype_symbol_tables):
     ans = 'Procedure table :-\n-----------------------------------------------------------------\n'
     ans += 'Name\t|\tReturn Type\t|\tParameter List\n'
     procedure_list = []
+    prototype_ids = []
+    for func_tuple in prototype_symbol_tables:
+        prototype_ids.append(func_tuple[0])
     for func_id, symbol in symbol_table.symbols.items():
         if symbol.is_function():
             return_type_txt = symbol.type + '*' * symbol.deref_depth
             params_txt_list = []
-            ordered_params = symbol.its_child_table.get_params_in_order()
+            ordered_params = None
+            if func_id in prototype_ids:
+                func_index = prototype_ids.index(func_id)
+                ordered_params = prototype_symbol_tables[func_index][1].get_params_in_order()
+            else:
+                ordered_params = symbol.its_child_table.get_params_in_order()
             for param in ordered_params:
                 _id, _type, deref_depth = param.id, param.type, param.deref_depth
                 params_txt_list.append('%s %s' % (_type, '*' * deref_depth + _id))

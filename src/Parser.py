@@ -13,6 +13,7 @@ input_file_name = ''
 no_assignments = 0
 symbol_table_stack = []
 global_symbol_table = SymbolTable()
+prototype_symbol_tables = []
 
 ########################################################################################
 
@@ -148,7 +149,7 @@ def p_initial_production(p):
 
     # sym
     with open(input_file_name + '.sym', 'w') as output_file:
-        output_file.write(procedure_table_text_repr(global_symbol_table))
+        output_file.write(procedure_table_text_repr(global_symbol_table, prototype_symbol_tables))
         output_file.write(variable_table_text_repr(global_symbol_table, 'global'))
 
 
@@ -243,6 +244,7 @@ def p_function_implementation(p):
                         symbol = Symbol(_id, _type, Symbol.GLOBAL_SCOPE, deref_depth,
                                         its_child_table=current_symbol_table,
                                         is_prototype=False)
+                        prototype_symbol_tables.append((_id,existing_symbol.its_child_table))
                         global_symbol_table.add_symbol(symbol)
                         symbol_table_stack.pop()
                     else:
