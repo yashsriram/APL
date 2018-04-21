@@ -21,7 +21,11 @@
 // function call
 // In if(!(a==b)) we are using not instruction to get the final value of the boolean but in MIPS applying not on 1 doesn't give 0, it gives the bitwise not of 1.
 // slt bug
-move bug resolve
+// move bug resolve
+// s.s vs s.d
+// negative numbers
+not comma in ast
+params table
 *&a bug check
+tell ta to use -wB
 rigorous check on float
-s.s vs s.d

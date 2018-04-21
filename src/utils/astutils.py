@@ -65,7 +65,10 @@ class ASTNode:
         elif self.type == 'FUNCTION':
             type_node, id_node, params_list_node, body_node, return_node = self.children
             # FUNCTION
-            ans += '\t' * tabs + 'FUNCTION ' + self.value + '\n'
+            if self.value == 'main':
+                ans += '\t' * tabs + 'Function ' + 'Main' + '\n'
+            else:
+                ans += '\t' * tabs + 'FUNCTION ' + self.value + '\n'
             param_list = ''
             _type = None
             # Add params from param_list_node to param_dict

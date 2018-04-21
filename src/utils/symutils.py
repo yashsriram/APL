@@ -23,7 +23,7 @@ def procedure_table_text_repr(symbol_table):
                 _id, _type, deref_depth = param.id, param.type, param.deref_depth
                 params_txt_list.append('%s %s' % (_type, '*' * deref_depth + _id))
             params_txt = ', '.join(params_txt_list)
-            proc_txt = '%s\t|\t%s\t\t|\t%s\n' % (func_id, return_type_txt, params_txt)
+            proc_txt = '%s\t\t|\t%s\t\t|\t%s\n' % (func_id, return_type_txt, params_txt)
             procedure_list.append((func_id, proc_txt))
     procedure_list.sort(key=lambda p: p[0])
     for procedure in procedure_list:
@@ -131,8 +131,12 @@ class SymbolTable:
                 txt = symbol.its_child_table.variable_table_text_repr(symbol.id)
                 func_list.append((symbol.id, txt))
             else:
-                txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (
-                    symbol.id, 'procedure ' + name, symbol.type, '*' * symbol.deref_depth)
+                if symbol.scope == symbol.GLOBAL_SCOPE:
+                    txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (
+                        symbol.id, name, symbol.type, '*' * symbol.deref_depth)
+                else:
+                    txt = '%s\t\t|\t%s\t|\t%s\t|\t%s\n' % (
+                        symbol.id, 'procedure ' + name, symbol.type, '*' * symbol.deref_depth)
                 param_list.append((symbol.id, txt))
         param_list.sort(key=lambda tup: tup[0])
         func_list.sort(key=lambda tup: tup[0])
